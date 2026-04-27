@@ -3,6 +3,7 @@ import {
   Zap, Ticket, Calculator, ShieldCheck, Settings, LogOut,
   ChevronDown, Plane,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 
 interface NavItem {
@@ -24,6 +25,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
+  const navigate = useNavigate();
   const sections: NavSection[] = [
     {
       items: [
@@ -106,7 +108,6 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       <div className="px-3 pb-4 border-t border-slate-800 pt-3 space-y-0.5">
         {[
           { icon: <Calculator size={16} />,   label: 'Calculator' },
-          { icon: <ShieldCheck size={16} />,  label: 'Super Admin' },
           { icon: <Settings size={16} />,     label: 'UI Settings' },
           { icon: <LogOut size={16} />,       label: 'Logout' },
         ].map((item) => (
@@ -122,6 +123,13 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
             <span>{item.label}</span>
           </button>
         ))}
+        <button
+          onClick={() => navigate('/superadmin')}
+          className="w-full text-left nav-item"
+        >
+          <ShieldCheck size={16} />
+          <span>Super Admin</span>
+        </button>
       </div>
     </aside>
   );
