@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TravelFlow Admin</title>
+    <script>
+      // Restore path from 404.html redirect
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+        // Handle ?p= query param from gh-pages 404.html
+        var q = window.location.search;
+        if (q && q.indexOf('p=') > -1) {
+          var params = q.slice(1).split('&').reduce(function(a, b) {
+            var kv = b.split('='); a[kv[0]] = kv.slice(1).join('='); return a;
+          }, {});
+          if (params.p) {
+            history.replaceState(null, null,
+              '/' + params.p.replace(/~and~/g, '&') +
+              (params.q ? '?' + params.q.replace(/~and~/g, '&') : '') +
+              window.location.hash
+            );
+          }
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
