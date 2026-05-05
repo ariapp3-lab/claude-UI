@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NovaCRM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --p50:#EBF3FF;--p100:#C3DAFF;--p200:#96BEFF;--p400:#3B82F6;--p500:#2563EB;--p600:#1D4ED8;--p700:#1E40AF;--p800:#1E3A8A;
+  --g50:#F8F9FA;--g100:#F1F3F5;--g200:#E9ECEF;--g300:#DEE2E6;--g400:#CED4DA;--g500:#ADB5BD;--g600:#6C757D;--g700:#495057;--g800:#343A40;--g900:#212529;
+  --s50:#ECFDF5;--s500:#10B981;--s600:#059669;--s700:#047857;
+  --w50:#FFFBEB;--w500:#F59E0B;--w600:#D97706;
+  --d50:#FEF2F2;--d500:#EF4444;--d600:#DC2626;
+  --pu50:#F5F3FF;--pu500:#8B5CF6;--pu600:#7C3AED;
+  --t50:#F0FDFA;--t500:#14B8A6;--t600:#0D9488;
+  --o50:#FFF7ED;--o500:#F97316;
+  --bg:#F3F5F8;--surface:#FFFFFF;
+  --txt1:#212529;--txt2:#6C757D;--txt3:#ADB5BD;
+  --bdr:1px solid #E9ECEF;--bdrf:1px solid #DEE2E6;
+  --r4:4px;--r8:8px;--r12:12px;--r16:16px;--rp:9999px;
+  --sh1:0 1px 3px rgba(0,0,0,.06);--sh2:0 4px 16px rgba(0,0,0,.08);--sh3:0 12px 40px rgba(0,0,0,.14);
+  --font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--txt1);font-size:14px;display:flex}
+
+/* ─── SIDEBAR ─── */
+.sb{width:220px;background:var(--surface);border-right:var(--bdr);display:flex;flex-direction:column;flex-shrink:0}
+.sb-logo{padding:18px 16px;border-bottom:var(--bdr);display:flex;align-items:center;gap:10px}
+.logo-mark{width:34px;height:34px;background:var(--p500);border-radius:var(--r8);display:flex;align-items:center;justify-content:center}
+.logo-mark svg{width:18px;height:18px}
+.logo-name{font-size:15px;font-weight:600}
+.logo-ver{font-size:10px;color:var(--txt3)}
+.sb-nav{flex:1;overflow-y:auto;padding:8px 0}
+.nav-sec{padding:12px 16px 4px;font-size:10px;font-weight:600;color:var(--txt3);letter-spacing:.08em;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;color:var(--txt2);font-size:13px;cursor:pointer;transition:all .12s;border-left:3px solid transparent;user-select:none}
+.nav-item:hover{background:var(--g50);color:var(--txt1)}
+.nav-item.on{background:var(--p50);color:var(--p500);border-left-color:var(--p500);font-weight:500}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--g200);color:var(--g700);font-size:10px;padding:1px 7px;border-radius:var(--rp);font-weight:600}
+.nav-item.on .nav-badge{background:var(--p100);color:var(--p700)}
+.sb-foot{padding:12px;border-top:var(--bdr)}
+.sb-user{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r8);cursor:pointer}
+.sb-user:hover{background:var(--g50)}
+.sb-uinfo{flex:1;min-width:0}
+.sb-uname{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-urole{font-size:11px;color:var(--txt3)}
+
+/* ─── MAIN ─── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:54px;background:var(--surface);border-bottom:var(--bdr);display:flex;align-items:center;gap:12px;padding:0 24px;flex-shrink:0}
+.tb-title{font-size:17px;font-weight:600}
+.tb-sub{font-size:13px;color:var(--txt3)}
+.tb-sep{color:var(--txt3);margin:0 2px}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.content{flex:1;overflow-y:auto;padding:24px}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:0 14px;height:34px;font-family:var(--font);font-size:13px;font-weight:500;border-radius:var(--r8);border:1px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1}
+.btn svg{width:14px;height:14px;flex-shrink:0}
+.btn-sm{height:28px;padding:0 10px;font-size:12px}
+.btn-lg{height:40px;padding:0 20px;font-size:14px}
+.btn-icon{padding:0;width:34px;justify-content:center}
+.btn-icon.btn-sm{width:28px}
+.btn-primary{background:var(--p500);color:#fff;border-color:var(--p600)}
+.btn-primary:hover{background:var(--p600)}
+.btn-secondary{background:var(--surface);color:var(--txt1);border-color:var(--g300)}
+.btn-secondary:hover{background:var(--g50)}
+.btn-ghost{background:transparent;color:var(--txt2);border-color:transparent}
+.btn-ghost:hover{background:var(--g100);color:var(--txt1)}
+.btn-danger{background:var(--d50);color:var(--d600);border-color:#FECACA}
+.btn-danger:hover{background:#FEE2E2}
+.btn-success{background:var(--s50);color:var(--s700);border-color:#A7F3D0}
+
+/* ─── INPUTS ─── */
+.field{margin-bottom:14px}
+.lbl{display:block;font-size:12px;font-weight:500;color:var(--txt2);margin-bottom:5px}
+.inp{width:100%;height:36px;padding:0 11px;border:var(--bdrf);border-radius:var(--r8);font-family:var(--font);font-size:13px;color:var(--txt1);background:var(--surface);outline:none;transition:border-color .15s,box-shadow .15s}
+.inp:focus{border-color:var(--p400);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.inp::placeholder{color:var(--txt3)}
+textarea.inp{height:auto;padding:9px 11px;resize:vertical}
+select.inp{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236C757D' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px}
+.inp-wrap{position:relative}
+.inp-wrap .inp{padding-left:36px}
+.inp-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--txt3);display:flex}
+.inp-icon svg{width:15px;height:15px}
+
+/* ─── AVATARS ─── */
+.av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0;line-height:1}
+.av-xs{width:22px;height:22px;font-size:8px}
+.av-sm{width:30px;height:30px;font-size:11px}
+.av-md{width:38px;height:38px;font-size:13px}
+.av-lg{width:48px;height:48px;font-size:16px}
+.av-xl{width:60px;height:60px;font-size:20px}
+.av-blue{background:var(--p100);color:var(--p700)}
+.av-green{background:#D1FAE5;color:var(--s700)}
+.av-purple{background:#EDE9FE;color:var(--pu600)}
+.av-orange{background:#FFEDD5;color:#C2410C}
+.av-red{background:#FEE2E2;color:var(--d600)}
+.av-teal{background:#CCFBF1;color:var(--t600)}
+.av-gray{background:var(--g200);color:var(--g600)}
+.av-group{display:flex}.av-group .av{border:2px solid var(--surface);margin-left:-7px}.av-group .av:first-child{margin-left:0}
+
+/* ─── BADGES ─── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:var(--rp);font-size:11.5px;font-weight:500;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.badge-blue{background:var(--p50);color:var(--p600)}
+.badge-green{background:var(--s50);color:var(--s700)}
+.badge-yellow{background:var(--w50);color:var(--w600)}
+.badge-red{background:var(--d50);color:var(--d600)}
+.badge-purple{background:var(--pu50);color:var(--pu600)}
+.badge-gray{background:var(--g100);color:var(--g700)}
+.badge-teal{background:var(--t50);color:var(--t600)}
+.badge-orange{background:var(--o50);color:#C2410C}
+
+/* ─── CARDS ─── */
+.card{background:var(--surface);border:var(--bdr);border-radius:var(--r12);overflow:hidden}
+.card-hd{padding:14px 18px;border-bottom:var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13.5px;font-weight:600}
+.card-body{padding:18px}
+.card-ft{padding:12px 18px;border-top:var(--bdr);background:var(--g50);display:flex;align-items:center;justify-content:space-between}
+
+/* ─── STAT CARDS ─── */
+.stat-card{background:var(--surface);border:var(--bdr);border-radius:var(--r12);padding:16px 18px}
+.stat-lbl{font-size:11.5px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.stat-val{font-size:28px;font-weight:600;color:var(--txt1);line-height:1}
+.stat-chg{display:flex;align-items:center;gap:4px;font-size:12px;margin-top:6px}
+.stat-up{color:var(--s600)}.stat-down{color:var(--d600)}.stat-neu{color:var(--txt3)}
+.stat-icon{float:right;width:36px;height:36px;border-radius:var(--r8);display:flex;align-items:center;justify-content:center}
+.stat-icon svg{width:17px;height:17px}
+
+/* ─── TABLE ─── */
+.tbl-wrap{border:var(--bdr);border-radius:var(--r12);overflow:hidden;background:var(--surface)}
+.tbl-top{padding:12px 16px;border-bottom:var(--bdr);display:flex;align-items:center;gap:10px}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--g50)}
+thead th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;border-bottom:var(--bdr);white-space:nowrap}
+thead th:first-child{padding-left:18px}
+tbody tr{border-bottom:var(--bdr);transition:background .1s;cursor:pointer}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--g50)}
+tbody td{padding:12px 14px;font-size:13px;vertical-align:middle}
+tbody td:first-child{padding-left:18px}
+.tbl-foot{padding:10px 16px;border-top:var(--bdr);display:flex;align-items:center;justify-content:space-between}
+
+/* ─── PAGINATION ─── */
+.pag{display:flex;align-items:center;gap:3px}
+.pag-btn{width:32px;height:32px;border-radius:var(--r8);border:var(--bdr);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--txt2);cursor:pointer;transition:all .1s}
+.pag-btn:hover{background:var(--g50);color:var(--txt1)}
+.pag-btn.on{background:var(--p500);border-color:var(--p600);color:#fff;font-weight:500}
+.pag-btn svg{width:13px;height:13px}
+
+/* ─── PROGRESS ─── */
+.prog{height:6px;background:var(--g200);border-radius:var(--rp);overflow:hidden}
+.prog-fill{height:100%;border-radius:var(--rp);transition:width .4s}
+.prog-blue{background:var(--p400)}
+.prog-green{background:var(--s500)}
+.prog-yellow{background:var(--w500)}
+.prog-red{background:var(--d500)}
+.prog-purple{background:var(--pu500)}
+
+/* ─── TABS ─── */
+.tabs{display:flex;border-bottom:var(--bdr)}
+.tab{padding:9px 16px;font-size:13px;font-weight:500;color:var(--txt2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;display:flex;align-items:center;gap:6px;user-select:none}
+.tab:hover{color:var(--txt1)}
+.tab.on{color:var(--p500);border-bottom-color:var(--p500)}
+.tab-cnt{background:var(--g200);color:var(--g700);padding:1px 6px;border-radius:var(--rp);font-size:10px}
+.tab.on .tab-cnt{background:var(--p100);color:var(--p700)}
+
+/* ─── TOGGLE ─── */
+.tog{position:relative;width:38px;height:21px;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0}
+.tog-sl{position:absolute;inset:0;background:var(--g300);border-radius:var(--rp);cursor:pointer;transition:background .2s}
+.tog-sl:before{content:'';position:absolute;width:15px;height:15px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:var(--sh1)}
+.tog input:checked+.tog-sl{background:var(--p500)}
+.tog input:checked+.tog-sl:before{transform:translateX(17px)}
+
+/* ─── ALERTS ─── */
+.alert{display:flex;gap:10px;padding:12px 14px;border-radius:var(--r8);border:1px solid;margin-bottom:8px}
+.alert svg{width:16px;height:16px;flex-shrink:0;margin-top:1px}
+.alert-info{background:var(--p50);border-color:var(--p200);color:var(--p700)}
+.alert-success{background:var(--s50);border-color:#A7F3D0;color:var(--s700)}
+.alert-warning{background:var(--w50);border-color:#FDE68A;color:var(--w600)}
+.alert-danger{background:var(--d50);border-color:#FECACA;color:var(--d600)}
+
+/* ─── MODAL ─── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:center;justify-content:center;padding:24px}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--r16);width:100%;max-width:480px;box-shadow:var(--sh3);overflow:hidden;animation:mIn .18s ease}
+@keyframes mIn{from{opacity:0;transform:scale(.96) translateY(8px)}}
+.modal-hd{padding:18px 22px;border-bottom:var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:15px;font-weight:600}
+.modal-body{padding:20px 22px}
+.modal-ft{padding:14px 22px;border-top:var(--bdr);background:var(--g50);display:flex;justify-content:flex-end;gap:8px}
+
+/* ─── DETAIL PANEL ─── */
+.panel-bg{position:fixed;inset:0;z-index:150;display:none}
+.panel-bg.open{display:block}
+.panel{position:fixed;right:0;top:0;bottom:0;width:480px;background:var(--surface);border-left:var(--bdr);box-shadow:var(--sh3);display:flex;flex-direction:column;animation:pIn .2s ease;z-index:151}
+@keyframes pIn{from{transform:translateX(40px);opacity:0}}
+.panel-hd{padding:16px 20px;border-bottom:var(--bdr);display:flex;align-items:center;gap:12px}
+.panel-scroll{flex:1;overflow-y:auto}
+.panel-sec{padding:16px 20px;border-bottom:var(--bdr)}
+.panel-sec-title{font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.info-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px}
+.info-lbl{font-size:12px;color:var(--txt3);width:100px;flex-shrink:0;padding-top:1px}
+.info-val{font-size:13px;color:var(--txt1);flex:1}
+.timeline-item{display:flex;gap:10px;padding:10px 0;border-bottom:var(--bdr)}
+.timeline-item:last-child{border-bottom:none}
+.tl-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.tl-body{flex:1}
+.tl-text{font-size:13px;color:var(--txt1);line-height:1.5}
+.tl-text strong{font-weight:500}
+.tl-time{font-size:11.5px;color:var(--txt3);margin-top:2px}
+
+/* ─── PIPELINE KANBAN ─── */
+.kanban{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;min-height:calc(100vh - 200px)}
+.kb-col{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:10px}
+.kb-hd{padding:12px 14px;border-radius:var(--r12);display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.kb-hd-title{font-size:12.5px;font-weight:600}
+.kb-card{background:var(--surface);border:var(--bdr);border-radius:var(--r12);padding:14px;cursor:pointer;transition:box-shadow .15s}
+.kb-card:hover{box-shadow:var(--sh2)}
+.kb-card-title{font-size:13px;font-weight:500;margin-bottom:6px}
+.kb-card-co{font-size:12px;color:var(--txt2);display:flex;align-items:center;gap:4px;margin-bottom:10px}
+.kb-card-co svg{width:12px;height:12px}
+.kb-card-ft{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:var(--bdr)}
+.kb-amount{font-size:12.5px;font-weight:600;color:var(--p600)}
+.kb-date{font-size:11px;color:var(--txt3)}
+.kb-add{display:flex;align-items:center;gap:6px;padding:10px 14px;color:var(--txt3);font-size:13px;cursor:pointer;border:1px dashed var(--g300);border-radius:var(--r12);transition:all .15s}
+.kb-add:hover{border-color:var(--p300);color:var(--p500);background:var(--p50)}
+.kb-add svg{width:14px;height:14px}
+
+/* ─── ACTIVITY ─── */
+.act-item{display:flex;gap:12px;padding:14px 0;border-bottom:var(--bdr)}
+.act-item:last-child{border-bottom:none}
+.act-icon{width:34px;height:34px;border-radius:var(--r8);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.act-icon svg{width:16px;height:16px}
+.act-body{flex:1}
+.act-text{font-size:13px;color:var(--txt1);line-height:1.5}
+.act-text strong{font-weight:500}
+.act-meta{font-size:12px;color:var(--txt3);margin-top:3px;display:flex;align-items:center;gap:8px}
+
+/* ─── SEARCH ─── */
+.search{display:flex;align-items:center;gap:8px;padding:0 11px;height:34px;border:var(--bdrf);border-radius:var(--r8);background:var(--surface);transition:border-color .15s}
+.search:focus-within{border-color:var(--p400);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.search input{flex:1;border:none;outline:none;font-family:var(--font);font-size:13px;color:var(--txt1);background:transparent}
+.search input::placeholder{color:var(--txt3)}
+.search svg{width:15px;height:15px;color:var(--txt3);flex-shrink:0}
+
+/* ─── MISC ─── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.flex{display:flex}.fca{display:flex;align-items:center}.fcb{display:flex;align-items:center;justify-content:space-between}
+.gap4{gap:4px}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}.gap14{gap:14px}.gap16{gap:16px}.gap20{gap:20px}
+.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb14{margin-bottom:14px}.mb16{margin-bottom:16px}.mb20{margin-bottom:20px}.mb24{margin-bottom:24px}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}
+.txt2{color:var(--txt2)}.txt3{color:var(--txt3)}
+.fw5{font-weight:500}.fw6{font-weight:600}
+.fs11{font-size:11px}.fs12{font-size:12px}.fs13{font-size:13px}.fs15{font-size:15px}.fs18{font-size:18px}.fs24{font-size:24px}
+.tag-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--r8);font-size:12px;font-weight:500;border:var(--bdr);background:var(--surface);color:var(--txt2)}
+.tag-rm{cursor:pointer;color:var(--txt3);display:flex}.tag-rm svg{width:11px;height:11px}
+.divider{height:1px;background:var(--g200);margin:4px 0}
+.empty{text-align:center;padding:48px 20px}
+.empty-ico{width:52px;height:52px;background:var(--g100);border-radius:var(--r12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.empty-ico svg{width:22px;height:22px;color:var(--txt3)}
+.chk{width:14px;height:14px;accent-color:var(--p500);cursor:pointer}
+.check-row{display:flex;align-items:center;gap:9px;margin-bottom:9px;cursor:pointer}
+.check-row .chk-lbl{font-size:13px}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--g300);border-radius:3px}
+.hidden{display:none!important}
+.view{display:none}.view.on{display:block}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    </div>
+    <div><div class="logo-name">NovaCRM</div><div class="logo-ver">v2.1 · Pro</div></div>
+  </div>
+
+  <nav class="sb-nav">
+    <div class="nav-sec">Main</div>
+    <div class="nav-item on" data-view="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" data-view="contacts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Contacts
+      <span class="nav-badge">248</span>
+    </div>
+    <div class="nav-item" data-view="pipeline">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="5" height="13" rx="1"/><rect x="9.5" y="4" width="5" height="16" rx="1"/><rect x="17" y="2" width="5" height="18" rx="1"/></svg>
+      Pipeline
+      <span class="nav-badge">46</span>
+    </div>
+    <div class="nav-item" data-view="deals">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Deals
+      <span class="nav-badge">12</span>
+    </div>
+    <div class="nav-item" data-view="activities">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Activities
+    </div>
+
+    <div class="nav-sec">Management</div>
+    <div class="nav-item" data-view="reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      Reports
+    </div>
+    <div class="nav-item" data-view="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41M2 12h2M20 12h2M17.66 17.66l1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2"/></svg>
+      Settings
+    </div>
+  </nav>
+
+  <div class="sb-foot">
+    <div class="sb-user">
+      <div class="av av-md av-blue">AC</div>
+      <div class="sb-uinfo">
+        <div class="sb-uname">Alex Carter</div>
+        <div class="sb-urole">Sales Manager</div>
+      </div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#ADB5BD" stroke-width="1.8" style="width:14px;height:14px;flex-shrink:0"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div id="tb-content" class="fca gap8">
+      <div class="tb-title">Dashboard</div>
+      <span class="tb-sub txt3">· Good morning, Alex 👋</span>
+    </div>
+    <div class="tb-right">
+      <div class="search" style="width:220px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search anything...">
+      </div>
+      <button class="btn btn-secondary btn-icon" title="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <div class="av av-sm av-blue" style="cursor:pointer">AC</div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="view on" id="view-dashboard">
+      <!-- KPI Row -->
+      <div class="grid4 mb24">
+        <div class="stat-card">
+          <div class="fcb mb8">
+            <div class="stat-lbl">Total Revenue</div>
+            <div class="stat-icon" style="background:var(--p50);color:var(--p500)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          </div>
+          <div class="stat-val">$2.41M</div>
+          <div class="stat-chg stat-up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polyline points="18 15 12 9 6 15"/></svg>+18.2% vs last quarter</div>
+        </div>
+        <div class="stat-card">
+          <div class="fcb mb8">
+            <div class="stat-lbl">Open Deals</div>
+            <div class="stat-icon" style="background:var(--pu50);color:var(--pu500)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+          </div>
+          <div class="stat-val">46</div>
+          <div class="stat-chg stat-up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polyline points="18 15 12 9 6 15"/></svg>+12 this month</div>
+        </div>
+        <div class="stat-card">
+          <div class="fcb mb8">
+            <div class="stat-lbl">Win Rate</div>
+            <div class="stat-icon" style="background:var(--s50);color:var(--s600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          </div>
+          <div class="stat-val">68%</div>
+          <div class="stat-chg stat-up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polyline points="18 15 12 9 6 15"/></svg>+5% this month</div>
+        </div>
+        <div class="stat-card">
+          <div class="fcb mb8">
+            <div class="stat-lbl">Avg Deal Size</div>
+            <div class="stat-icon" style="background:var(--w50);color:var(--w600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/></svg></div>
+          </div>
+          <div class="stat-val">$32K</div>
+          <div class="stat-chg stat-down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polyline points="6 9 12 15 18 9"/></svg>-3% this month</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:16px">
+        <!-- Pipeline overview -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">Pipeline Overview</div>
+            <div class="fca gap8">
+              <span class="badge badge-blue">Q4 2025</span>
+              <button class="btn btn-ghost btn-sm">View all</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div>
+                <div class="fcb mb8"><span class="fs12 txt2 fw5">Prospecting</span><span class="fs12 fw6">$128K <span class="txt3 fw4">· 8 deals</span></span></div>
+                <div class="prog"><div class="prog-fill prog-blue" style="width:22%"></div></div>
+              </div>
+              <div>
+                <div class="fcb mb8"><span class="fs12 txt2 fw5">Qualified</span><span class="fs12 fw6">$520K <span class="txt3 fw4">· 12 deals</span></span></div>
+                <div class="prog"><div class="prog-fill prog-blue" style="width:45%"></div></div>
+              </div>
+              <div>
+                <div class="fcb mb8"><span class="fs12 txt2 fw5">Proposal Sent</span><span class="fs12 fw6">$380K <span class="txt3 fw4">· 9 deals</span></span></div>
+                <div class="prog"><div class="prog-fill prog-purple" style="width:33%"></div></div>
+              </div>
+              <div>
+                <div class="fcb mb8"><span class="fs12 txt2 fw5">Negotiation</span><span class="fs12 fw6">$292K <span class="txt3 fw4">· 6 deals</span></span></div>
+                <div class="prog"><div class="prog-fill prog-yellow" style="width:25%"></div></div>
+              </div>
+              <div>
+                <div class="fcb mb8"><span class="fs12 txt2 fw5">Closed Won</span><span class="fs12 fw6 " style="color:var(--s700)">$1.08M <span class="txt3 fw4">· 18 deals</span></span></div>
+                <div class="prog"><div class="prog-fill prog-green" style="width:93%"></div></div>
+              </div>
+            </div>
+            <div style="margin-top:18px;padding-top:14px;border-top:var(--bdr)" class="fcb">
+              <span class="fs12 txt2">Total pipeline value</span>
+              <span class="fs15 fw6 " style="color:var(--p600)">$2.4M</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tasks & Reminders -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">Tasks Today</div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('new-task')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add
+            </button>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div id="task-list" style="padding:0 16px"></div>
+          </div>
+          <div class="card-ft">
+            <span class="fs12 txt3">3 of 7 completed</span>
+            <button class="btn btn-ghost btn-sm">View all tasks</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <!-- Recent contacts -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">Recent Contacts</div>
+            <button class="btn btn-ghost btn-sm" onclick="showView('contacts')">View all →</button>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div id="dash-contacts"></div>
+          </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">Activity Feed</div>
+            <div class="fca gap6">
+              <span class="badge badge-green"><span class="dot" style="background:var(--s500)"></span>Live</span>
+            </div>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div style="padding:0 16px" id="dash-activity"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CONTACTS ══ -->
+    <div class="view" id="view-contacts">
+      <div class="tbl-wrap">
+        <div class="tbl-top">
+          <div class="search" style="width:260px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Search contacts..." id="contact-search" oninput="filterContacts()">
+          </div>
+          <select class="inp" style="width:150px;height:34px" id="stage-filter" onchange="filterContacts()">
+            <option value="">All stages</option>
+            <option>Prospecting</option>
+            <option>Qualified</option>
+            <option>Proposal Sent</option>
+            <option>Negotiation</option>
+            <option>Closed Won</option>
+            <option>Closed Lost</option>
+          </select>
+          <select class="inp" style="width:140px;height:34px" id="owner-filter" onchange="filterContacts()">
+            <option value="">All owners</option>
+            <option>Alex Carter</option>
+            <option>Sarah Kim</option>
+            <option>Marcus Johnson</option>
+          </select>
+          <div style="margin-left:auto" class="fca gap8">
+            <button class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openModal('new-contact')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Contact
+            </button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px"><input type="checkbox" class="chk"></th>
+              <th>Contact</th>
+              <th>Company</th>
+              <th>Stage</th>
+              <th>Deal Value</th>
+              <th>Last Activity</th>
+              <th>Owner</th>
+              <th style="width:50px"></th>
+            </tr>
+          </thead>
+          <tbody id="contacts-tbody"></tbody>
+        </table>
+        <div class="tbl-foot">
+          <div class="fs12 txt2">Showing <span id="contacts-count">0</span> of 248 contacts</div>
+          <div class="pag">
+            <div class="pag-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></div>
+            <div class="pag-btn on">1</div>
+            <div class="pag-btn">2</div>
+            <div class="pag-btn">3</div>
+            <div class="pag-btn" style="font-size:11px">···</div>
+            <div class="pag-btn">25</div>
+            <div class="pag-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PIPELINE ══ -->
+    <div class="view" id="view-pipeline">
+      <div class="fcb mb16">
+        <div class="fca gap8">
+          <span class="badge badge-blue">$2.4M pipeline</span>
+          <span class="badge badge-gray">46 deals</span>
+        </div>
+        <div class="fca gap8">
+          <button class="btn btn-secondary btn-sm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            Filter
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('new-deal')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Deal
+          </button>
+        </div>
+      </div>
+      <div class="kanban" id="kanban-board"></div>
+    </div>
+
+    <!-- ══ DEALS ══ -->
+    <div class="view" id="view-deals">
+      <div class="tabs mb16" style="background:var(--surface);border-radius:var(--r12) var(--r12) 0 0;padding:0 16px">
+        <div class="tab on">All <span class="tab-cnt">46</span></div>
+        <div class="tab">Open <span class="tab-cnt">28</span></div>
+        <div class="tab">Won <span class="tab-cnt">18</span></div>
+        <div class="tab">Lost <span class="tab-cnt">8</span></div>
+      </div>
+      <div class="tbl-wrap" style="border-radius:0 0 var(--r12) var(--r12)">
+        <div class="tbl-top">
+          <div class="search" style="width:240px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Search deals...">
+          </div>
+          <div style="margin-left:auto" class="fca gap8">
+            <button class="btn btn-primary btn-sm" onclick="openModal('new-deal')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Deal
+            </button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px"><input type="checkbox" class="chk"></th>
+              <th>Deal Name</th>
+              <th>Company</th>
+              <th>Stage</th>
+              <th>Value</th>
+              <th>Close Date</th>
+              <th>Probability</th>
+              <th>Owner</th>
+              <th style="width:50px"></th>
+            </tr>
+          </thead>
+          <tbody id="deals-tbody"></tbody>
+        </table>
+        <div class="tbl-foot">
+          <span class="fs12 txt2">12 deals · Total value $892K</span>
+          <div class="pag">
+            <div class="pag-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></div>
+            <div class="pag-btn on">1</div>
+            <div class="pag-btn">2</div>
+            <div class="pag-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ACTIVITIES ══ -->
+    <div class="view" id="view-activities">
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:16px">
+        <div>
+          <div class="fca gap8 mb16">
+            <div class="tabs" style="flex:1;background:var(--surface);border-radius:var(--r8);padding:0 12px">
+              <div class="tab on">All</div>
+              <div class="tab">Calls</div>
+              <div class="tab">Emails</div>
+              <div class="tab">Meetings</div>
+              <div class="tab">Tasks</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('new-activity')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Log Activity
+            </button>
+          </div>
+          <div class="card">
+            <div class="card-body" id="activity-list"></div>
+          </div>
+        </div>
+        <!-- Upcoming -->
+        <div>
+          <div class="fs12 fw6 txt3 mb12" style="text-transform:uppercase;letter-spacing:.06em">Upcoming</div>
+          <div style="display:flex;flex-direction:column;gap:10px" id="upcoming-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ REPORTS ══ -->
+    <div class="view" id="view-reports">
+      <div class="grid4 mb20">
+        <div class="stat-card">
+          <div class="stat-lbl">Quota Attainment</div>
+          <div class="stat-val">91%</div>
+          <div class="prog mt8"><div class="prog-fill prog-green" style="width:91%"></div></div>
+          <div class="stat-chg stat-up mt8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polyline points="18 15 12 9 6 15"/></svg>On track for 100%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-lbl">Deals Closed</div>
+          <div class="stat-val">18</div>
+          <div class="stat-chg stat-up mt8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polyline points="18 15 12 9 6 15"/></svg>+4 vs last month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-lbl">Avg Sales Cycle</div>
+          <div class="stat-val">28d</div>
+          <div class="stat-chg stat-down mt8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polyline points="6 9 12 15 18 9"/></svg>+3 days vs last month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-lbl">Lead Response</div>
+          <div class="stat-val">1.4h</div>
+          <div class="stat-chg stat-up mt8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px"><polyline points="18 15 12 9 6 15"/></svg>Faster than target</div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Revenue by Stage</div></div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div class="fcb"><span class="fs12 txt2">Prospecting</span><span class="fs12 fw6">$128K</span></div>
+              <div class="prog" style="height:10px"><div class="prog-fill prog-blue" style="width:12%"></div></div>
+              <div class="fcb"><span class="fs12 txt2">Qualified</span><span class="fs12 fw6">$520K</span></div>
+              <div class="prog" style="height:10px"><div class="prog-fill prog-blue" style="width:48%"></div></div>
+              <div class="fcb"><span class="fs12 txt2">Proposal Sent</span><span class="fs12 fw6">$380K</span></div>
+              <div class="prog" style="height:10px"><div class="prog-fill prog-purple" style="width:35%"></div></div>
+              <div class="fcb"><span class="fs12 txt2">Negotiation</span><span class="fs12 fw6">$292K</span></div>
+              <div class="prog" style="height:10px"><div class="prog-fill prog-yellow" style="width:27%"></div></div>
+              <div class="fcb"><span class="fs12 txt2">Closed Won</span><span class="fs12 fw6" style="color:var(--s700)">$1.08M</span></div>
+              <div class="prog" style="height:10px"><div class="prog-fill prog-green" style="width:100%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Team Performance</div></div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div>
+                <div class="fcb mb8">
+                  <div class="fca gap10"><div class="av av-sm av-blue">AC</div><span class="fs13 fw5">Alex Carter</span></div>
+                  <span class="fs12 fw6 " style="color:var(--s700)">$820K · 91%</span>
+                </div>
+                <div class="prog"><div class="prog-fill prog-green" style="width:91%"></div></div>
+              </div>
+              <div>
+                <div class="fcb mb8">
+                  <div class="fca gap10"><div class="av av-sm av-purple">SK</div><span class="fs13 fw5">Sarah Kim</span></div>
+                  <span class="fs12 fw6">$680K · 75%</span>
+                </div>
+                <div class="prog"><div class="prog-fill prog-blue" style="width:75%"></div></div>
+              </div>
+              <div>
+                <div class="fcb mb8">
+                  <div class="fca gap10"><div class="av av-sm av-orange">MJ</div><span class="fs13 fw5">Marcus Johnson</span></div>
+                  <span class="fs12 fw6">$540K · 60%</span>
+                </div>
+                <div class="prog"><div class="prog-fill prog-yellow" style="width:60%"></div></div>
+              </div>
+              <div>
+                <div class="fcb mb8">
+                  <div class="fca gap10"><div class="av av-sm av-teal">FT</div><span class="fs13 fw5">Fiona Torres</span></div>
+                  <span class="fs12 fw6 " style="color:var(--d600)">$360K · 40%</span>
+                </div>
+                <div class="prog"><div class="prog-fill prog-red" style="width:40%"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS ══ -->
+    <div class="view" id="view-settings">
+      <div style="display:grid;grid-template-columns:220px 1fr;gap:20px">
+        <div class="card" style="align-self:start">
+          <div class="card-body" style="padding:8px 0">
+            <div style="display:flex;flex-direction:column">
+              <div class="nav-item on" style="border-radius:0;font-size:13px">Profile</div>
+              <div class="nav-item" style="border-radius:0;font-size:13px">Team Members</div>
+              <div class="nav-item" style="border-radius:0;font-size:13px">Notifications</div>
+              <div class="nav-item" style="border-radius:0;font-size:13px">Integrations</div>
+              <div class="nav-item" style="border-radius:0;font-size:13px">Pipeline Stages</div>
+              <div class="nav-item" style="border-radius:0;font-size:13px">Billing</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Profile Settings</div></div>
+            <div class="card-body">
+              <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:var(--bdr)">
+                <div class="av av-xl av-blue">AC</div>
+                <div>
+                  <div class="fs15 fw6 mb8">Alex Carter</div>
+                  <div class="fca gap8">
+                    <button class="btn btn-secondary btn-sm">Change Photo</button>
+                    <button class="btn btn-ghost btn-sm">Remove</button>
+                  </div>
+                </div>
+              </div>
+              <div class="grid2">
+                <div class="field"><label class="lbl">First Name</label><input class="inp" type="text" value="Alex"></div>
+                <div class="field"><label class="lbl">Last Name</label><input class="inp" type="text" value="Carter"></div>
+                <div class="field"><label class="lbl">Email</label><input class="inp" type="email" value="alex.carter@company.com"></div>
+                <div class="field"><label class="lbl">Phone</label><input class="inp" type="tel" value="+1 (415) 555-0192"></div>
+                <div class="field"><label class="lbl">Role</label><select class="inp"><option selected>Sales Manager</option><option>Account Executive</option><option>Admin</option></select></div>
+                <div class="field"><label class="lbl">Timezone</label><select class="inp"><option selected>US/Pacific (PST)</option><option>US/Eastern (EST)</option></select></div>
+              </div>
+            </div>
+            <div class="card-ft"><span class="fs12 txt3">Last updated 3 days ago</span><button class="btn btn-primary btn-sm">Save Changes</button></div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Notifications</div></div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div class="fcb">
+                  <div><div class="fs13 fw5">Deal stage changes</div><div class="fs12 txt3">Get notified when a deal moves to a new stage</div></div>
+                  <label class="tog"><input type="checkbox" checked><span class="tog-sl"></span></label>
+                </div>
+                <div class="divider"></div>
+                <div class="fcb">
+                  <div><div class="fs13 fw5">Task reminders</div><div class="fs12 txt3">Reminders for overdue or upcoming tasks</div></div>
+                  <label class="tog"><input type="checkbox" checked><span class="tog-sl"></span></label>
+                </div>
+                <div class="divider"></div>
+                <div class="fcb">
+                  <div><div class="fs13 fw5">New contact assigned</div><div class="fs12 txt3">Alert when a contact is assigned to you</div></div>
+                  <label class="tog"><input type="checkbox"><span class="tog-sl"></span></label>
+                </div>
+                <div class="divider"></div>
+                <div class="fcb">
+                  <div><div class="fs13 fw5">Weekly digest email</div><div class="fs12 txt3">Summary of your pipeline every Monday</div></div>
+                  <label class="tog"><input type="checkbox" checked><span class="tog-sl"></span></label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ═══════════════ CONTACT DETAIL PANEL ═══════════════ -->
+<div class="panel-bg" id="contact-panel-bg" onclick="closePanel()"></div>
+<div class="panel" id="contact-panel" style="display:none">
+  <div class="panel-hd">
+    <div id="panel-av" class="av av-lg av-blue">SC</div>
+    <div style="flex:1">
+      <div class="fs15 fw6" id="panel-name">Sarah Chen</div>
+      <div class="fs12 txt2" id="panel-role">VP of Sales · Acme Corp</div>
+    </div>
+    <div class="fca gap6">
+      <button class="btn btn-secondary btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="closePanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+  </div>
+
+  <div class="tabs" style="padding:0 20px;border-bottom:var(--bdr)">
+    <div class="tab on">Overview</div>
+    <div class="tab">Activity <span class="tab-cnt">8</span></div>
+    <div class="tab">Deals <span class="tab-cnt">2</span></div>
+    <div class="tab">Files</div>
+  </div>
+
+  <div class="panel-scroll">
+    <div class="panel-sec">
+      <div class="panel-sec-title">Contact Info</div>
+      <div class="info-row">
+        <span class="info-lbl">Email</span>
+        <span class="info-val" style="color:var(--p500)" id="panel-email">s.chen@acme.com</span>
+      </div>
+      <div class="info-row">
+        <span class="info-lbl">Phone</span>
+        <span class="info-val" id="panel-phone">+1 (415) 555-0192</span>
+      </div>
+      <div class="info-row">
+        <span class="info-lbl">Company</span>
+        <span class="info-val" id="panel-company">Acme Corporation</span>
+      </div>
+      <div class="info-row">
+        <span class="info-lbl">Location</span>
+        <span class="info-val" id="panel-location">San Francisco, CA</span>
+      </div>
+      <div class="info-row">
+        <span class="info-lbl">Source</span>
+        <span class="info-val"><span class="badge badge-teal" id="panel-source">Referral</span></span>
+      </div>
+      <div class="info-row">
+        <span class="info-lbl">Tags</span>
+        <span class="info-val" style="display:flex;gap:5px;flex-wrap:wrap">
+          <span class="badge badge-purple">VIP</span>
+          <span class="badge badge-blue">Enterprise</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="panel-sec">
+      <div class="panel-sec-title">Deal Summary</div>
+      <div style="background:var(--g50);border-radius:var(--r8);padding:12px;border:var(--bdr)">
+        <div class="fcb mb8">
+          <span class="fs13 fw5" id="panel-deal">Enterprise License Q4</span>
+          <span class="badge badge-orange" id="panel-stage">Negotiation</span>
+        </div>
+        <div class="fcb">
+          <span class="fs24 fw6" style="color:var(--p600)" id="panel-value">$48,000</span>
+          <span class="fs12 txt3" id="panel-close">Closes Dec 31</span>
+        </div>
+        <div class="prog mt12"><div class="prog-fill prog-yellow" id="panel-prog" style="width:80%"></div></div>
+        <div class="fcb mt8"><span class="fs11 txt3">80% probability</span></div>
+      </div>
+    </div>
+
+    <div class="panel-sec">
+      <div class="panel-sec-title">Recent Activity</div>
+      <div class="timeline-item">
+        <div class="tl-dot" style="background:var(--p500)"></div>
+        <div class="tl-body"><div class="tl-text">Sent proposal document via email</div><div class="tl-time">2 days ago · Alex Carter</div></div>
+      </div>
+      <div class="timeline-item">
+        <div class="tl-dot" style="background:var(--s500)"></div>
+        <div class="tl-body"><div class="tl-text">Call logged — 24 min. Discussed pricing options</div><div class="tl-time">4 days ago · Alex Carter</div></div>
+      </div>
+      <div class="timeline-item">
+        <div class="tl-dot" style="background:var(--w500)"></div>
+        <div class="tl-body"><div class="tl-text">Meeting scheduled for product demo</div><div class="tl-time">1 week ago · Sarah Kim</div></div>
+      </div>
+      <div class="timeline-item">
+        <div class="tl-dot" style="background:var(--g400)"></div>
+        <div class="tl-body"><div class="tl-text">Contact created from inbound form</div><div class="tl-time">Oct 14, 2025</div></div>
+      </div>
+    </div>
+
+    <div class="panel-sec">
+      <div class="panel-sec-title">Quick Actions</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-secondary btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6"/></svg>Log Call</button>
+        <button class="btn btn-secondary btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Send Email</button>
+        <button class="btn btn-secondary btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Schedule</button>
+        <button class="btn btn-secondary btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Add Task</button>
+        <button class="btn btn-secondary btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Add Note</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+<!-- New Contact Modal -->
+<div class="modal-bg" id="modal-new-contact">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Add New Contact</div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal('new-contact')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="field"><label class="lbl">First Name *</label><input class="inp" type="text" placeholder="Jane"></div>
+        <div class="field"><label class="lbl">Last Name *</label><input class="inp" type="text" placeholder="Smith"></div>
+      </div>
+      <div class="field"><label class="lbl">Email *</label><input class="inp" type="email" placeholder="jane@company.com"></div>
+      <div class="grid2">
+        <div class="field"><label class="lbl">Phone</label><input class="inp" type="tel" placeholder="+1 (555) 000-0000"></div>
+        <div class="field"><label class="lbl">Company</label><input class="inp" type="text" placeholder="Acme Corp"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label class="lbl">Pipeline Stage</label><select class="inp"><option>Prospecting</option><option>Qualified</option><option>Proposal Sent</option><option>Negotiation</option></select></div>
+        <div class="field"><label class="lbl">Owner</label><select class="inp"><option>Alex Carter</option><option>Sarah Kim</option><option>Marcus Johnson</option></select></div>
+      </div>
+      <div class="field"><label class="lbl">Lead Source</label><select class="inp"><option>Inbound</option><option>Referral</option><option>Outbound</option><option>Partner</option><option>Organic</option></select></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('new-contact')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('new-contact')">Save Contact</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Deal Modal -->
+<div class="modal-bg" id="modal-new-deal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Create New Deal</div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal('new-deal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label class="lbl">Deal Name *</label><input class="inp" type="text" placeholder="e.g. Acme Corp — Enterprise License"></div>
+      <div class="grid2">
+        <div class="field"><label class="lbl">Deal Value</label><div class="inp-wrap"><span class="inp-icon" style="font-weight:600;font-size:13px;left:11px">$</span><input class="inp" type="text" placeholder="0.00"></div></div>
+        <div class="field"><label class="lbl">Close Date</label><input class="inp" type="date"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label class="lbl">Stage</label><select class="inp"><option>Prospecting</option><option>Qualified</option><option>Proposal Sent</option><option>Negotiation</option><option>Closed Won</option></select></div>
+        <div class="field"><label class="lbl">Probability %</label><input class="inp" type="number" placeholder="50" min="0" max="100"></div>
+      </div>
+      <div class="field"><label class="lbl">Contact</label><input class="inp" type="text" placeholder="Search contact..."></div>
+      <div class="field"><label class="lbl">Owner</label><select class="inp"><option>Alex Carter</option><option>Sarah Kim</option><option>Marcus Johnson</option></select></div>
+      <div class="field"><label class="lbl">Notes</label><textarea class="inp" rows="2" placeholder="Any relevant details..."></textarea></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('new-deal')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('new-deal')">Create Deal</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Task Modal -->
+<div class="modal-bg" id="modal-new-task">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hd">
+      <div class="modal-title">Add Task</div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal('new-task')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label class="lbl">Task Name *</label><input class="inp" type="text" placeholder="What needs to be done?"></div>
+      <div class="grid2">
+        <div class="field"><label class="lbl">Due Date</label><input class="inp" type="date"></div>
+        <div class="field"><label class="lbl">Priority</label><select class="inp"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+      </div>
+      <div class="field"><label class="lbl">Related Contact</label><input class="inp" type="text" placeholder="Search..."></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('new-task')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('new-task')">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Activity Modal -->
+<div class="modal-bg" id="modal-new-activity">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hd">
+      <div class="modal-title">Log Activity</div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal('new-activity')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label class="lbl">Activity Type</label>
+        <div class="fca gap8" style="margin-top:6px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm">📞 Call</button>
+          <button class="btn btn-secondary btn-sm">✉️ Email</button>
+          <button class="btn btn-secondary btn-sm">📅 Meeting</button>
+          <button class="btn btn-secondary btn-sm">📝 Note</button>
+        </div>
+      </div>
+      <div class="field"><label class="lbl">Contact</label><input class="inp" type="text" placeholder="Search contact..."></div>
+      <div class="grid2">
+        <div class="field"><label class="lbl">Date</label><input class="inp" type="date"></div>
+        <div class="field"><label class="lbl">Duration</label><select class="inp"><option>15 min</option><option>30 min</option><option selected>1 hour</option></select></div>
+      </div>
+      <div class="field"><label class="lbl">Notes</label><textarea class="inp" rows="3" placeholder="What was discussed?"></textarea></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('new-activity')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('new-activity')">Log Activity</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════ DATA ═══════════════
+const CONTACTS = [
+  {id:1,name:'Sarah Chen',initials:'SC',color:'blue',role:'VP of Sales',company:'Acme Corporation',email:'s.chen@acme.com',phone:'+1 (415) 555-0192',location:'San Francisco, CA',stage:'Negotiation',value:'$48,000',lastAct:'2 days ago',owner:'AC',ownerColor:'blue',ownerFull:'Alex Carter',source:'Referral',deal:'Enterprise License Q4',closeDate:'Dec 31',prob:80,dealColor:'orange'},
+  {id:2,name:'Marcus Johnson',initials:'MJ',color:'purple',role:'CTO',company:'Global Industries',email:'m.johnson@global.io',phone:'+1 (212) 555-0831',location:'New York, NY',stage:'Proposal Sent',value:'$124,000',lastAct:'Today, 9:41am',owner:'SK',ownerColor:'orange',ownerFull:'Sarah Kim',source:'Inbound',deal:'Platform Integration',closeDate:'Jan 15',prob:55,dealColor:'teal'},
+  {id:3,name:'Aisha Lawson',initials:'AL',color:'orange',role:'Head of Ops',company:'Tech Ventures Co.',email:'a.lawson@tech.co',phone:'+1 (310) 555-0444',location:'Los Angeles, CA',stage:'Closed Won',value:'$32,500',lastAct:'Nov 12, 2024',owner:'MJ',ownerColor:'purple',ownerFull:'Marcus Johnson',source:'Referral',deal:'Annual Subscription',closeDate:'Nov 12',prob:100,dealColor:'green'},
+  {id:4,name:'Raj Kumar',initials:'RK',color:'red',role:'CEO',company:'FinTech AI Inc.',email:'r.kumar@fintech.ai',phone:'+1 (408) 555-0299',location:'Austin, TX',stage:'Closed Lost',value:'$95,000',lastAct:'Oct 30, 2024',owner:'AC',ownerColor:'blue',ownerFull:'Alex Carter',source:'Outbound',deal:'Enterprise Expansion',closeDate:'Oct 30',prob:0,dealColor:'red'},
+  {id:5,name:'Priya Sharma',initials:'PS',color:'teal',role:'VP of Product',company:'SaaSify Labs',email:'p.sharma@saasify.io',phone:'+1 (650) 555-0717',location:'Seattle, WA',stage:'Qualified',value:'$76,000',lastAct:'Yesterday',owner:'SK',ownerColor:'orange',ownerFull:'Sarah Kim',source:'Inbound',deal:'Product Suite License',closeDate:'Feb 1',prob:40,dealColor:'blue'},
+  {id:6,name:'James Wu',initials:'JW',color:'green',role:'Director of IT',company:'CoreSystems Ltd.',email:'j.wu@coresystems.com',phone:'+1 (617) 555-0358',location:'Boston, MA',stage:'Prospecting',value:'$22,000',lastAct:'3 days ago',owner:'MJ',ownerColor:'purple',ownerFull:'Marcus Johnson',source:'Outbound',deal:'Pilot Program',closeDate:'Mar 15',prob:20,dealColor:'gray'},
+  {id:7,name:'Elena Martinez',initials:'EM',color:'blue',role:'CMO',company:'BrandForce Agency',email:'e.martinez@brandforce.co',phone:'+1 (312) 555-0522',location:'Chicago, IL',stage:'Negotiation',value:'$58,000',lastAct:'5 hours ago',owner:'AC',ownerColor:'blue',ownerFull:'Alex Carter',source:'Partner',deal:'Marketing Suite',closeDate:'Jan 8',prob:75,dealColor:'orange'},
+  {id:8,name:'David Park',initials:'DP',color:'purple',role:'CFO',company:'Nexus Capital',email:'d.park@nexuscap.com',phone:'+1 (213) 555-0187',location:'Denver, CO',stage:'Qualified',value:'$210,000',lastAct:'1 day ago',owner:'SK',ownerColor:'orange',ownerFull:'Sarah Kim',source:'Referral',deal:'Enterprise Deal',closeDate:'Mar 31',prob:35,dealColor:'blue'},
+];
+
+const DEALS = [
+  {id:1,name:'Enterprise License Q4',company:'Acme Corporation',stage:'Negotiation',value:'$48,000',close:'Dec 31',prob:80,owner:'AC',ownerColor:'blue'},
+  {id:2,name:'Platform Integration',company:'Global Industries',stage:'Proposal Sent',value:'$124,000',close:'Jan 15',prob:55,owner:'SK',ownerColor:'orange'},
+  {id:3,name:'Annual Subscription',company:'Tech Ventures Co.',stage:'Closed Won',value:'$32,500',close:'Nov 12',prob:100,owner:'MJ',ownerColor:'purple'},
+  {id:4,name:'Marketing Suite',company:'BrandForce Agency',stage:'Negotiation',value:'$58,000',close:'Jan 8',prob:75,owner:'AC',ownerColor:'blue'},
+  {id:5,name:'Product Suite License',company:'SaaSify Labs',stage:'Qualified',value:'$76,000',close:'Feb 1',prob:40,owner:'SK',ownerColor:'orange'},
+  {id:6,name:'Enterprise Deal',company:'Nexus Capital',stage:'Qualified',value:'$210,000',close:'Mar 31',prob:35,owner:'SK',ownerColor:'orange'},
+  {id:7,name:'Pilot Program',company:'CoreSystems Ltd.',stage:'Prospecting',value:'$22,000',close:'Mar 15',prob:20,owner:'MJ',ownerColor:'purple'},
+  {id:8,name:'Professional Services',company:'DataStream Inc.',stage:'Proposal Sent',value:'$45,000',close:'Jan 20',prob:60,owner:'AC',ownerColor:'blue'},
+  {id:9,name:'SMB Starter Pack',company:'QuickStart LLC',stage:'Prospecting',value:'$8,500',close:'Feb 10',prob:25,owner:'MJ',ownerColor:'purple'},
+  {id:10,name:'Growth Plan Upgrade',company:'Helios Health',stage:'Closed Won',value:'$28,000',close:'Nov 28',prob:100,owner:'AC',ownerColor:'blue'},
+  {id:11,name:'Custom Integration',company:'Vertex Analytics',stage:'Closed Lost',value:'$95,000',close:'Oct 30',prob:0,owner:'AC',ownerColor:'blue'},
+  {id:12,name:'Team Expansion',company:'Sunrise Partners',stage:'Negotiation',value:'$64,000',close:'Dec 20',prob:70,owner:'SK',ownerColor:'orange'},
+];
+
+const ACTIVITIES = [
+  {type:'call',icon:'📞',iconBg:'#EBF3FF',iconColor:'#2563EB',text:'<strong>Alex Carter</strong> logged a 24-min call with <strong>Sarah Chen</strong> — discussed enterprise pricing options',time:'2 hours ago',tags:['Acme Corp']},
+  {type:'email',icon:'✉️',iconBg:'#ECFDF5',iconColor:'#059669',text:'<strong>Sarah Kim</strong> sent proposal to <strong>Marcus Johnson</strong> at Global Industries',time:'4 hours ago',tags:['Global Industries']},
+  {type:'deal',icon:'🏆',iconBg:'#ECFDF5',iconColor:'#059669',text:'Deal <strong>Annual Subscription</strong> marked as <strong>Closed Won</strong> — $32,500',time:'Yesterday, 3:14pm',tags:['Tech Ventures']},
+  {type:'meeting',icon:'📅',iconBg:'#FFF7ED',iconColor:'#D97706',text:'<strong>Alex Carter</strong> scheduled a product demo with <strong>Elena Martinez</strong>',time:'Yesterday, 11:00am',tags:['BrandForce']},
+  {type:'note',icon:'📝',iconBg:'#F5F3FF',iconColor:'#7C3AED',text:'<strong>Marcus Johnson</strong> added a note on <strong>Nexus Capital</strong> deal — awaiting board approval',time:'2 days ago',tags:['Nexus Capital']},
+  {type:'contact',icon:'👤',iconBg:'#EBF3FF',iconColor:'#2563EB',text:'New contact <strong>David Park</strong> from Nexus Capital was added via inbound form',time:'2 days ago',tags:['New Contact']},
+  {type:'call',icon:'📞',iconBg:'#EBF3FF',iconColor:'#2563EB',text:'<strong>Sarah Kim</strong> logged a discovery call with <strong>Priya Sharma</strong> at SaaSify Labs',time:'3 days ago',tags:['SaaSify Labs']},
+  {type:'email',icon:'✉️',iconBg:'#ECFDF5',iconColor:'#059669',text:'Follow-up email sent to <strong>James Wu</strong> — pilot program details attached',time:'3 days ago',tags:['CoreSystems']},
+];
+
+const TASKS = [
+  {done:false,text:'Follow up with Sarah Chen on proposal',due:'Today',priority:'high'},
+  {done:true,text:'Send pricing sheet to Marcus Johnson',due:'Done',priority:'medium'},
+  {done:false,text:'Schedule Q4 review with Aisha Lawson',due:'Today',priority:'medium'},
+  {done:true,text:'Update CRM with call notes — David Park',due:'Done',priority:'low'},
+  {done:false,text:'Prepare demo for Elena Martinez',due:'Tomorrow',priority:'high'},
+  {done:true,text:'Send contract to Tech Ventures Co.',due:'Done',priority:'high'},
+  {done:false,text:'Research Nexus Capital competitors',due:'Dec 20',priority:'low'},
+];
+
+const UPCOMING = [
+  {type:'📞',title:'Call — Sarah Chen',sub:'Enterprise pricing',time:'Today, 2:00 PM'},
+  {type:'📅',title:'Demo — Elena Martinez',sub:'Marketing Suite',time:'Tomorrow, 10:00 AM'},
+  {type:'✉️',title:'Follow-up — Raj Kumar',sub:'Re-engagement email',time:'Dec 20'},
+  {type:'📅',title:'Review — Priya Sharma',sub:'Product walkthrough',time:'Jan 5'},
+];
+
+const PIPELINE_STAGES = [
+  {key:'prospecting',label:'Prospecting',color:'#6C757D',bg:'#F8F9FA',border:'#E9ECEF',textColor:'#495057'},
+  {key:'qualified',label:'Qualified',color:'#2563EB',bg:'#EBF3FF',border:'#C3DAFF',textColor:'#1E40AF'},
+  {key:'proposal',label:'Proposal Sent',color:'#14B8A6',bg:'#F0FDFA',border:'#99F6E4',textColor:'#0D9488'},
+  {key:'negotiation',label:'Negotiation',color:'#F59E0B',bg:'#FFFBEB',border:'#FDE68A',textColor:'#D97706'},
+  {key:'won',label:'Closed Won',color:'#10B981',bg:'#ECFDF5',border:'#A7F3D0',textColor:'#047857'},
+];
+
+const KANBAN_DEALS = {
+  prospecting:[
+    {title:'Pilot Program',company:'CoreSystems Ltd.',value:'$22,000',date:'Mar 15',owners:['MJ','orange']},
+    {title:'SMB Starter Pack',company:'QuickStart LLC',value:'$8,500',date:'Feb 10',owners:['AC','blue']},
+  ],
+  qualified:[
+    {title:'Product Suite License',company:'SaaSify Labs',value:'$76,000',date:'Feb 1',owners:['SK','orange','MJ','purple']},
+    {title:'Enterprise Deal',company:'Nexus Capital',value:'$210,000',date:'Mar 31',owners:['SK','orange']},
+    {title:'Growth Initiative',company:'Helios Health',value:'$42,000',date:'Feb 20',owners:['AC','blue']},
+  ],
+  proposal:[
+    {title:'Platform Integration',company:'Global Industries',value:'$124,000',date:'Jan 15',owners:['SK','orange']},
+    {title:'Professional Services',company:'DataStream Inc.',value:'$45,000',date:'Jan 20',owners:['AC','blue','SK','orange']},
+  ],
+  negotiation:[
+    {title:'Enterprise License Q4',company:'Acme Corporation',value:'$48,000',date:'Dec 31',owners:['AC','blue']},
+    {title:'Marketing Suite',company:'BrandForce Agency',value:'$58,000',date:'Jan 8',owners:['AC','blue']},
+    {title:'Team Expansion',company:'Sunrise Partners',value:'$64,000',date:'Dec 20',owners:['SK','orange']},
+  ],
+  won:[
+    {title:'Annual Subscription',company:'Tech Ventures Co.',value:'$32,500',date:'Nov 12',owners:['MJ','purple']},
+    {title:'Growth Plan Upgrade',company:'Helios Health',value:'$28,000',date:'Nov 28',owners:['AC','blue']},
+  ],
+};
+
+// ═══════════════ STAGE BADGE ═══════════════
+function stageBadge(stage) {
+  const map = {
+    'Prospecting':'badge-gray','Qualified':'badge-blue','Proposal Sent':'badge-teal',
+    'Negotiation':'badge-orange','Closed Won':'badge-green','Closed Lost':'badge-red'
+  };
+  return `<span class="badge ${map[stage]||'badge-gray'}">${stage}</span>`;
+}
+
+function probBar(p) {
+  let cls = p>=70?'prog-green':p>=40?'prog-blue':p===0?'prog-red':'prog-yellow';
+  return `<div class="prog" style="width:80px"><div class="prog-fill ${cls}" style="width:${p}%"></div></div>`;
+}
+
+// ═══════════════ RENDER CONTACTS ═══════════════
+function renderContacts(list) {
+  const tbody = document.getElementById('contacts-tbody');
+  tbody.innerHTML = list.map(c => `
+    <tr onclick="openContact(${c.id})">
+      <td onclick="event.stopPropagation()"><input type="checkbox" class="chk"></td>
+      <td>
+        <div class="fca gap10">
+          <div class="av av-sm av-${c.color}">${c.initials}</div>
+          <div>
+            <div class="fw5 fs13">${c.name}</div>
+            <div class="txt3 fs12">${c.email}</div>
+          </div>
+        </div>
+      </td>
+      <td class="txt2 fs13">${c.company}</td>
+      <td>${stageBadge(c.stage)}</td>
+      <td class="fw6 fs13" style="color:${c.stage==='Closed Won'?'var(--s700)':c.stage==='Closed Lost'?'var(--txt3)':'var(--txt1)'};${c.stage==='Closed Lost'?'text-decoration:line-through':''}">${c.value}</td>
+      <td class="txt2 fs12">${c.lastAct}</td>
+      <td>
+        <div class="fca gap6">
+          <div class="av av-xs av-${c.ownerColor}" title="${c.ownerFull}">${c.owner}</div>
+        </div>
+      </td>
+      <td onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-icon btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('contacts-count').textContent = list.length;
+}
+
+function filterContacts() {
+  const q = document.getElementById('contact-search').value.toLowerCase();
+  const stage = document.getElementById('stage-filter').value;
+  const owner = document.getElementById('owner-filter').value;
+  const filtered = CONTACTS.filter(c => {
+    const matchQ = !q || c.name.toLowerCase().includes(q) || c.company.toLowerCase().includes(q) || c.email.toLowerCase().includes(q);
+    const matchS = !stage || c.stage === stage;
+    const matchO = !owner || c.ownerFull === owner;
+    return matchQ && matchS && matchO;
+  });
+  renderContacts(filtered);
+}
+
+// ═══════════════ RENDER DEALS ═══════════════
+function renderDeals() {
+  document.getElementById('deals-tbody').innerHTML = DEALS.map(d => `
+    <tr>
+      <td><input type="checkbox" class="chk"></td>
+      <td class="fw5 fs13">${d.name}</td>
+      <td class="txt2 fs13">${d.company}</td>
+      <td>${stageBadge(d.stage)}</td>
+      <td class="fw6 fs13" style="color:${d.stage==='Closed Won'?'var(--s700)':d.stage==='Closed Lost'?'var(--txt3)':'var(--p600)';}">${d.value}</td>
+      <td class="txt2 fs12">${d.close}</td>
+      <td>
+        <div class="fca gap8">${probBar(d.prob)}<span class="fs11 txt3">${d.prob}%</span></div>
+      </td>
+      <td><div class="av av-xs av-${d.ownerColor}">${d.owner}</div></td>
+      <td><button class="btn btn-ghost btn-icon btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button></td>
+    </tr>
+  `).join('');
+}
+
+// ═══════════════ RENDER KANBAN ═══════════════
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  board.innerHTML = PIPELINE_STAGES.map(stage => {
+    const deals = KANBAN_DEALS[stage.key] || [];
+    const total = deals.reduce((s, d) => s + parseInt(d.value.replace(/[$,]/g,'')), 0);
+    const cards = deals.map(d => {
+      const owners = [];
+      for (let i = 0; i < d.owners.length; i += 2) owners.push(`<div class="av av-xs av-${d.owners[i+1]}">${d.owners[i]}</div>`);
+      return `
+      <div class="kb-card" onclick="openModal('new-deal')">
+        <div class="fcb mb8">
+          <span class="badge" style="background:${stage.bg};color:${stage.textColor};border:1px solid ${stage.border}">${stage.label}</span>
+          <div class="av-group">${owners.join('')}</div>
+        </div>
+        <div class="kb-card-title">${d.title}</div>
+        <div class="kb-card-co"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${d.company}</div>
+        <div class="kb-card-ft">
+          <div class="kb-amount">${d.value}</div>
+          <div class="kb-date">Closes ${d.date}</div>
+        </div>
+      </div>`;
+    }).join('');
+    return `
+    <div class="kb-col">
+      <div class="kb-hd" style="background:${stage.bg};border:1px solid ${stage.border}">
+        <span class="kb-hd-title" style="color:${stage.textColor}">${stage.label}</span>
+        <div class="fca gap6">
+          <span class="badge" style="background:${stage.bg};color:${stage.textColor};border:1px solid ${stage.border}">${deals.length}</span>
+        </div>
+      </div>
+      <div class="fs12 txt3 mb8" style="padding:0 2px">$${(total/1000).toFixed(0)}K total</div>
+      ${cards}
+      <div class="kb-add" onclick="openModal('new-deal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add deal
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════ RENDER ACTIVITIES ═══════════════
+function renderActivities() {
+  document.getElementById('activity-list').innerHTML = ACTIVITIES.map(a => `
+    <div class="act-item">
+      <div class="act-icon" style="background:${a.iconBg}">
+        <span style="font-size:16px">${a.icon}</span>
+      </div>
+      <div class="act-body">
+        <div class="act-text">${a.text}</div>
+        <div class="act-meta">
+          <span>${a.time}</span>
+          ${a.tags.map(t=>`<span class="badge badge-gray" style="padding:1px 7px;font-size:10.5px">${t}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderUpcoming() {
+  document.getElementById('upcoming-list').innerHTML = UPCOMING.map(u => `
+    <div class="card">
+      <div class="card-body" style="padding:12px 14px">
+        <div class="fca gap10">
+          <div style="font-size:20px">${u.type}</div>
+          <div>
+            <div class="fs13 fw5">${u.title}</div>
+            <div class="fs12 txt3">${u.sub}</div>
+            <div class="fca gap4 mt8"><span class="badge badge-blue" style="font-size:10.5px">${u.time}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════ RENDER DASHBOARD ═══════════════
+function renderDashTasks() {
+  document.getElementById('task-list').innerHTML = TASKS.map((t,i) => `
+    <div class="fca gap10" style="padding:11px 0;border-bottom:var(--bdr);${i===TASKS.length-1?'border-bottom:none':''}">
+      <input type="checkbox" class="chk" ${t.done?'checked':''}>
+      <div style="flex:1">
+        <div class="fs13 ${t.done?'txt3':'fw5'}" style="${t.done?'text-decoration:line-through':''}">
+          ${t.text}
+        </div>
+        <div class="fca gap6 mt4">
+          <span class="badge ${t.priority==='high'?'badge-red':t.priority==='medium'?'badge-yellow':'badge-gray'}" style="font-size:10px;padding:2px 7px">${t.priority}</span>
+          <span class="fs11 txt3">${t.due}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderDashContacts() {
+  const list = CONTACTS.slice(0, 5);
+  document.getElementById('dash-contacts').innerHTML = list.map(c => `
+    <div class="fca gap12" style="padding:11px 18px;border-bottom:var(--bdr);cursor:pointer" onclick="openContact(${c.id})">
+      <div class="av av-sm av-${c.color}">${c.initials}</div>
+      <div style="flex:1">
+        <div class="fs13 fw5">${c.name}</div>
+        <div class="fs12 txt3">${c.company}</div>
+      </div>
+      <div class="fca gap8">
+        ${stageBadge(c.stage)}
+        <span class="fs12 fw6" style="color:var(--p600)">${c.value}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderDashActivity() {
+  document.getElementById('dash-activity').innerHTML = ACTIVITIES.slice(0,5).map(a => `
+    <div class="act-item" style="padding:11px 0">
+      <div style="font-size:18px;margin-top:2px">${a.icon}</div>
+      <div class="act-body">
+        <div class="act-text fs13">${a.text}</div>
+        <div class="act-meta"><span>${a.time}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════ NAVIGATION ═══════════════
+const TOPBAR_META = {
+  dashboard:{title:'Dashboard',sub:'· Good morning, Alex 👋'},
+  contacts:{title:'Contacts',sub:'· 248 total'},
+  pipeline:{title:'Pipeline',sub:'· Kanban view'},
+  deals:{title:'Deals',sub:'· Q4 2025'},
+  activities:{title:'Activities',sub:'· All logged'},
+  reports:{title:'Reports',sub:'· Q4 2025'},
+  settings:{title:'Settings',sub:'· Workspace'},
+};
+
+function showView(key) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('on', el.dataset.view===key));
+  document.querySelectorAll('.view').forEach(el => el.classList.toggle('on', el.id==='view-'+key));
+  const meta = TOPBAR_META[key]||{title:key,sub:''};
+  document.getElementById('tb-content').innerHTML = `<div class="tb-title">${meta.title}</div><span class="txt3 fs13">${meta.sub}</span>`;
+}
+
+document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+  el.addEventListener('click', () => showView(el.dataset.view));
+});
+
+// ═══════════════ CONTACT PANEL ═══════════════
+function openContact(id) {
+  const c = CONTACTS.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('panel-av').className=`av av-lg av-${c.color}`;
+  document.getElementById('panel-av').textContent=c.initials;
+  document.getElementById('panel-name').textContent=c.name;
+  document.getElementById('panel-role').textContent=`${c.role} · ${c.company}`;
+  document.getElementById('panel-email').textContent=c.email;
+  document.getElementById('panel-phone').textContent=c.phone;
+  document.getElementById('panel-company').textContent=c.company;
+  document.getElementById('panel-location').textContent=c.location;
+  document.getElementById('panel-source').textContent=c.source;
+  document.getElementById('panel-deal').textContent=c.deal;
+  document.getElementById('panel-stage').className=`badge badge-${c.dealColor}`;
+  document.getElementById('panel-stage').textContent=c.stage;
+  document.getElementById('panel-value').textContent=c.value;
+  document.getElementById('panel-close').textContent=`Closes ${c.closeDate}`;
+  document.getElementById('panel-prog').style.width=c.prob+'%';
+  const prob = c.prob;
+  const cls = prob>=70?'prog-green':prob>=40?'prog-blue':prob===0?'prog-red':'prog-yellow';
+  document.getElementById('panel-prog').className=`prog-fill ${cls}`;
+  document.getElementById('contact-panel').style.display='flex';
+  document.getElementById('contact-panel-bg').classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('contact-panel').style.display='none';
+  document.getElementById('contact-panel-bg').classList.remove('open');
+}
+
+// ═══════════════ MODALS ═══════════════
+function openModal(key) {
+  document.getElementById('modal-'+key).classList.add('open');
+}
+function closeModal(key) {
+  document.getElementById('modal-'+key).classList.remove('open');
+}
+document.querySelectorAll('.modal-bg').forEach(m => {
+  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });
+});
+
+// ═══════════════ INIT ═══════════════
+renderContacts(CONTACTS);
+renderDeals();
+renderKanban();
+renderActivities();
+renderUpcoming();
+renderDashTasks();
+renderDashContacts();
+renderDashActivity();
+</script>
+</body>
+</html>
+HTMLEOF
+echo "done"
