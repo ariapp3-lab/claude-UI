@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,9 +7,9 @@
   *, *::before, *::after { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-    background-color: #f8fafc;
-    color: #0f172a;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background-color: #F8F9FA;
+    color: #212529;
     -webkit-font-smoothing: antialiased;
   }
   #root { width: 100%; min-height: 100vh; }
@@ -17,27 +17,27 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm;
+    @apply inline-flex items-center gap-1.5 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-md transition-colors;
   }
   .btn-secondary {
-    @apply inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-surface-subtle border border-surface-border text-slate-700 text-sm font-medium rounded-lg transition-colors shadow-sm;
+    @apply inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 text-sm font-medium rounded-md transition-colors;
   }
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
   .card {
-    @apply bg-white rounded-xl border border-surface-border shadow-card;
+    @apply bg-white rounded-lg border border-surface-border shadow-card;
   }
   .nav-item {
-    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-text hover:text-sidebar-textHigh hover:bg-sidebar-hover transition-all cursor-pointer;
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium text-sidebar-text hover:text-sidebar-textHigh hover:bg-sidebar-hover transition-all cursor-pointer;
   }
   .nav-item-active {
-    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-sidebar-active;
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium text-brand-600 bg-sidebar-active;
   }
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-thumb { background: #DEE2E6; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #ADB5BD; }
