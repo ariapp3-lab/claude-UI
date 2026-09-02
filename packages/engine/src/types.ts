@@ -21,7 +21,12 @@ export type DocumentType =
   | "ADM"    // agency debit memo
   | "ACM";   // agency credit memo
 
-export type FareType = "published" | "private" | "group" | "consolidator";
+export type FareType =
+  | "published"
+  | "private"        // classified / negotiated, fare amount shown
+  | "net"            // bulk (BT) or inclusive tour (IT) — fare amount suppressed
+  | "group"
+  | "consolidator";
 
 export type PaxType = "ADT" | "CHD" | "INF" | "SRC" | "STU" | "MIL" | "LBR";
 
@@ -73,7 +78,19 @@ export interface TicketDocument {
   readonly posCountry: string;     // ISO-3166 alpha-2
   readonly currency: string;
 
+  /**
+   * The fare on the ticket — what the passenger was charged, before taxes.
+   * This is the selling fare, and the basis a commission percentage applies to.
+   */
   readonly baseFare: Money;
+  /**
+   * What the agency pays the airline, when the two differ. A net fare marked
+   * up earns no commission; the agency's revenue is `baseFare - netFare`.
+   * Equal to `baseFare` (or absent) on ordinary published business.
+   */
+  readonly netFare?: Money | null;
+  /** True when the fare is filed as bulk (BT) or inclusive tour (IT). */
+  readonly bulk?: boolean;
   readonly taxes: readonly TaxItem[];
   readonly total: Money;
 
@@ -87,6 +104,25 @@ export interface TicketDocument {
   readonly reportedCommission?: Money | null;
   /** Penalty retained on a refund — normally non-commissionable. */
   readonly penalty?: Money | null;
+
+  /**
+   * Exchange detail, lifted from the Amadeus FO element on a reissue.
+   *
+   * Commission on a reissue is computed on the new fare and then reduced by
+   * what was already recognised on the ticket it replaces, so `originalBase`
+   * and `originalCommission` are not decoration — without them a reissue pays
+   * twice on the carried-over fare.
+   */
+  readonly exchange?: {
+    readonly originalTicket: string;
+    readonly originalBase: Money;
+    readonly originalTax?: Money | null;
+    readonly originalCommission?: Money | null;
+    /** Fare difference collected on the reissue. */
+    readonly additionalCollection?: Money | null;
+    /** Airline change fee — a carrier charge, not commissionable. */
+    readonly changeFee?: Money | null;
+  } | null;
 
   readonly coupons: readonly Coupon[];
 
