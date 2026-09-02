@@ -100,8 +100,16 @@ export interface TicketDocument {
 
 export type RuleLayer = "carrier_to_host" | "host_to_subagent";
 
-/** Whether market conditions are tested against the whole ticket or per coupon. */
-export type RuleScope = "ticket" | "coupon";
+/**
+ * The unit a rule is applied to.
+ *
+ *   ticket   one rate for the whole document (the common case)
+ *   coupon   a rate per flight coupon, against a prorated base
+ *   half_rt  a rate per direction of travel — the outbound half and the
+ *            return half each priced on their own booking class. EL AL's
+ *            2026 letter states this explicitly at clause 12.1.
+ */
+export type RuleScope = "ticket" | "coupon" | "half_rt";
 
 export interface StringCondition {
   readonly in?: readonly string[];
@@ -126,8 +134,33 @@ export interface DateWindow {
   readonly to?: string;   // ISO, inclusive
 }
 
+/**
+ * A rate that depends on a field of the ticket rather than being one number.
+ * Carrier commission letters are written this way — a table of booking class
+ * against percentage — so the rule is stored the same way the contract is.
+ */
+export interface RateTable {
+  readonly by: "rbd";
+  /** Booking class → decimal rate string, e.g. { D: "9.00", W: "5.00" }. */
+  readonly rates: Readonly<Record<string, string>>;
+  /**
+   * What a class absent from the table earns. "nil" is the safe reading of a
+   * commission letter: a class the airline did not list is not a class it
+   * agreed to pay on. "ambiguous" queues it for a human instead.
+   */
+  readonly otherwise?: "nil" | "ambiguous";
+}
+
 export interface RuleMatch {
   readonly validatingCarrier?: string | StringCondition;
+  /**
+   * Countries or regions the journey must ORIGINATE in. Distinct from
+   * `market`, which tests a pair: a contract that pays only on travel
+   * originating in the USA and Canada does not pay on the reverse journey.
+   */
+  readonly originIn?: readonly string[];
+  /** The mirror: a journey originating in any of these does NOT match. */
+  readonly originNotIn?: readonly string[];
   readonly marketingCarrier?: string | StringCondition;
   readonly posCountry?: string | StringCondition;
   readonly market?: MarketCondition;
@@ -165,6 +198,8 @@ export interface Award {
 
   /** percent | plb — decimal string, e.g. "8.00". */
   readonly rate?: string;
+  /** percent — a rate that varies by booking class, as filed in the contract. */
+  readonly rateTable?: RateTable;
   /** percent — components summed to form the commissionable basis. */
   readonly basis?: readonly BasisComponent[];
   /** percent — optional bounds applied after rounding. */

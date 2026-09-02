@@ -20,7 +20,9 @@ import type {
   StringCondition,
   TicketDocument,
 } from "./types.js";
-import { type GeoContext, journeyDestination, journeyOrigin, matchMarket } from "./geo.js";
+import {
+  type GeoContext, countryOf, isWithin, journeyDestination, journeyOrigin, matchMarket,
+} from "./geo.js";
 
 export interface MatchContext {
   readonly geo: GeoContext;
@@ -211,6 +213,33 @@ export function evaluateRule(
       expected: results[0]?.expected ?? "any",
       actual: allCoupons(coupons, (c) => c.marketingCarrier).join(", "),
       passed: results.every((r) => r.passed),
+    });
+  }
+
+  if (m.originIn !== undefined) {
+    // Origination, not a market pair. A contract paying on travel originating
+    // in the USA and Canada pays nothing on the mirror-image journey, so this
+    // must never be folded into a bidirectional market test.
+    const origin = journeyOrigin(ticket.coupons);
+    const oc = countryOf(origin, ctx.geo);
+    if (oc === null) unresolvedGeography = true;
+    traces.push({
+      field: "originIn",
+      expected: `originates in ${m.originIn.join(" or ")}`,
+      actual: `${origin}(${oc ?? "?"})`,
+      passed: m.originIn.some((scope) => isWithin(origin, scope, ctx.geo)),
+    });
+  }
+
+  if (m.originNotIn !== undefined) {
+    const origin = journeyOrigin(ticket.coupons);
+    const oc = countryOf(origin, ctx.geo);
+    if (oc === null) unresolvedGeography = true;
+    traces.push({
+      field: "originNotIn",
+      expected: `does not originate in ${m.originNotIn.join(" or ")}`,
+      actual: `${origin}(${oc ?? "?"})`,
+      passed: !m.originNotIn.some((scope) => isWithin(origin, scope, ctx.geo)),
     });
   }
 

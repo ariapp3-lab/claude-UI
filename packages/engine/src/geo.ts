@@ -189,3 +189,29 @@ export function matchMarket(
 
   return { matched: forward || reverse, describe, unresolved };
 }
+
+/**
+ * Split a journey into its directional halves.
+ *
+ * A round trip is two half-round-trip sectors: everything up to and including
+ * the turnaround, and everything after it. A one-way is a single sector. This
+ * is the unit EL AL's clause 12.1 prices on, and it is not the same as a
+ * coupon — a JFK–LHR–TLV outbound is two coupons but one half.
+ */
+export function splitHalves(
+  coupons: readonly Coupon[],
+  geo: GeoContext,
+): { label: string; coupons: Coupon[] }[] {
+  if (coupons.length === 0) return [];
+  const turnaround = journeyDestination(coupons, geo);
+  const idx = coupons.findIndex((c) => c.destination === turnaround);
+  if (idx === -1 || idx === coupons.length - 1) {
+    return [{ label: `${coupons[0].origin}–${turnaround}`, coupons: [...coupons] }];
+  }
+  const out = coupons.slice(0, idx + 1);
+  const back = coupons.slice(idx + 1);
+  return [
+    { label: `${out[0].origin}–${out[out.length - 1].destination}`, coupons: out },
+    { label: `${back[0].origin}–${back[back.length - 1].destination}`, coupons: back },
+  ];
+}

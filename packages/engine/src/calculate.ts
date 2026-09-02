@@ -31,7 +31,7 @@ import {
   sum,
   zero,
 } from "./money.js";
-import { DEFAULT_GEO, type GeoContext } from "./geo.js";
+import { DEFAULT_GEO, type GeoContext, splitHalves } from "./geo.js";
 import { type MatchContext, selectRule } from "./match.js";
 import type {
   Award,
@@ -39,6 +39,7 @@ import type {
   BasisTrace,
   ConditionTrace,
   Coupon,
+  RateTable,
   LayerResult,
   Rule,
   TicketDocument,
@@ -107,6 +108,50 @@ function resolveBasis(
   return { basis: sum(parts, ticket.currency), trace };
 }
 
+/**
+ * Resolve the rate for a set of coupons from a booking-class table.
+ *
+ * A class the airline did not list is not a class it agreed to pay on, so an
+ * unlisted RBD earns nil rather than falling through to some default. Mixed
+ * classes inside one priced sector are genuinely undefined by the contract and
+ * are reported, not averaged.
+ */
+function rateFromTable(
+  table: RateTable,
+  coupons: readonly Coupon[],
+): { rate: string | null; note: string; ambiguous: boolean } {
+  const classes = [...new Set(coupons.map((c) => c.rbd.toUpperCase()))];
+
+  const unlisted = classes.filter((c) => table.rates[c] === undefined);
+  if (unlisted.length > 0) {
+    // `otherwise` governs this case and this case only: a class the airline
+    // did not list. It has nothing to say about a sector booked in two.
+    return {
+      rate: null,
+      ambiguous: table.otherwise === "ambiguous",
+      note: `booking class ${unlisted.join("/") || "∅"} is not listed in the rate table`,
+    };
+  }
+
+  const rates = [...new Set(classes.map((c) => table.rates[c]!))];
+  if (rates.length > 1) {
+    // Two classes at two different rates in one priced sector. The contract
+    // says the rate follows "the RBD booked" and does not say which one that
+    // is when there are two, so there is no answer to compute.
+    return {
+      rate: null,
+      ambiguous: true,
+      note:
+        `sector mixes booking classes ${classes.join("/")} at ${rates.join("% / ")}% — ` +
+        "the contract does not say which governs a mixed sector",
+    };
+  }
+
+  // Several classes that happen to earn the same rate are not ambiguous.
+  const rate = rates[0]!;
+  return { rate, ambiguous: false, note: `${classes.join("/")} → ${rate}%` };
+}
+
 // ---------------------------------------------------------------------------
 // Awards
 // ---------------------------------------------------------------------------
@@ -118,6 +163,10 @@ interface AwardResult {
   readonly basisTrace?: BasisTrace[];
   readonly notes: string[];
   readonly nil: boolean;
+  /** The contract does not determine an answer here; a human must decide. */
+  readonly ambiguous?: boolean;
+  /** The rate actually used, once a table has been resolved. */
+  readonly rateUsed?: string;
 }
 
 function applyAward(
@@ -127,6 +176,7 @@ function applyAward(
   upstream?: Money,
   baseOverride?: Money,
   couponCount = 1,
+  couponScope?: readonly Coupon[],
 ): AwardResult {
   const currency = ticket.currency;
   const rounding = award.rounding?.mode ?? opts.defaultRounding;
@@ -143,7 +193,26 @@ function applyAward(
     case "percent": {
       const components = award.basis ?? ["base_fare"];
       const { basis, trace } = resolveBasis(ticket, components, baseOverride);
-      let commission = applyRate(basis, award.rate ?? "0", rounding);
+
+      let rate = award.rate;
+      if (award.rateTable) {
+        const scopeCoupons = couponScope ?? ticket.coupons;
+        const r = rateFromTable(award.rateTable, scopeCoupons);
+        notes.push(r.note);
+        if (r.rate === null) {
+          return {
+            commission: zero(currency),
+            basis,
+            basisTrace: trace,
+            notes,
+            nil: true,
+            ambiguous: r.ambiguous,
+          };
+        }
+        rate = r.rate;
+      }
+
+      let commission = applyRate(basis, rate ?? "0", rounding);
 
       if (award.cap) {
         const cap = parseMoney(award.cap, award.currency ?? currency);
@@ -161,7 +230,10 @@ function applyAward(
           commission = floored;
         }
       }
-      return { commission, basis, basisTrace: trace, notes, nil: isZero(commission) };
+      return {
+        commission, basis, basisTrace: trace, notes,
+        nil: isZero(commission), rateUsed: rate,
+      };
     }
 
     case "flat": {
@@ -340,15 +412,15 @@ function applyAward(
  * trace rather than hidden. `allocate` guarantees the parts sum to the whole,
  * so a per-coupon rule can never invent or lose a minor unit.
  */
-export function prorateBase(ticket: TicketDocument): {
-  parts: Money[];
-  method: "fare_calc" | "equal";
-} {
+export function prorateBasis(
+  ticket: TicketDocument,
+  basis: Money,
+): { parts: Money[]; method: "fare_calc" | "equal" } {
   const weights = ticket.coupons.map((c) => c.fareCalcWeight ?? null);
   const haveAll = weights.every((w) => w !== null && w > 0n);
   const method = haveAll ? "fare_calc" : "equal";
   const w = haveAll ? (weights as bigint[]) : ticket.coupons.map(() => 1n);
-  return { parts: allocate(ticket.baseFare, w), method };
+  return { parts: allocate(basis, w), method };
 }
 
 // ---------------------------------------------------------------------------
@@ -429,9 +501,85 @@ export function calculateCarrierLayer(
   const winner = selection.evaluation.rule;
   const notes: string[] = [];
 
+  if ((winner.scope ?? "ticket") === "half_rt") {
+    // Clause-12.1 pricing: each direction of travel is rated on its own
+    // booking class against its own share of the fare. An outbound in D at 9%
+    // and a return in W at 5% are two different rates on one ticket, and
+    // averaging them or taking the first is simply wrong money.
+    const halves = splitHalves(ticket.coupons, geo);
+    const weights = halves.map((h) =>
+      h.coupons.reduce((acc, c) => acc + (c.fareCalcWeight ?? 1n), 0n),
+    );
+    const usedFareCalc = ticket.coupons.every((c) => (c.fareCalcWeight ?? 0n) > 0n);
+
+    // Split the commissionable basis itself. Splitting only the base fare and
+    // letting each sector re-add the whole tax stack would charge the carrier
+    // for the same YQ twice on every round trip.
+    const full = resolveBasis(ticket, winner.award.basis ?? ["base_fare"]);
+    const parts = allocate(full.basis, weights);
+
+    notes.push(
+      halves.length === 1
+        ? "one-way journey priced as a single sector"
+        : usedFareCalc
+          ? "priced per half round trip; fare split from the fare calculation"
+          : "priced per half round trip; fare split evenly between the two directions",
+    );
+
+    let total = zero(ticket.currency);
+    const trace: BasisTrace[] = [];
+    let ambiguous = false;
+
+    halves.forEach((half, i) => {
+      const table = winner.award.rateTable;
+      const resolved = table
+        ? rateFromTable(table, half.coupons)
+        : { rate: winner.award.rate ?? "0", ambiguous: false, note: `${winner.award.rate}%` };
+
+      const classes = [...new Set(half.coupons.map((c) => c.rbd))].join("/");
+      notes.push(`${half.label}: ${resolved.note}`);
+
+      if (resolved.rate === null) {
+        if (resolved.ambiguous) ambiguous = true;
+        trace.push({
+          component: `${half.label} (${classes})`,
+          amount: parts[i],
+          included: false,
+          reason: resolved.note,
+        });
+        return;
+      }
+
+      const earned = applyRate(parts[i], resolved.rate, defaultRounding);
+      total = add(total, earned);
+      trace.push({
+        component: `${half.label} (${classes})`,
+        amount: parts[i],
+        included: true,
+        reason: `${resolved.rate}% → ${formatMoney(earned)}`,
+      });
+    });
+
+    return {
+      layer: "carrier_to_host",
+      outcome: ambiguous ? "AMBIGUOUS" : isZero(total) ? "NIL" : "CALCULATED",
+      ruleId: winner.id,
+      ruleVersion: winner.version,
+      clause: winner.source?.clause,
+      basis: full.basis,
+      basisTrace: [...full.trace, ...trace],
+      commission: ambiguous ? zero(ticket.currency) : total,
+      conditions: selection.evaluation.traces,
+      rejected: selection.rejected,
+      notes,
+      rate: winner.award.rate,
+    };
+  }
+
   if ((winner.scope ?? "ticket") === "coupon") {
     // Per-coupon evaluation against a prorated base.
-    const { parts, method } = prorateBase(ticket);
+    const fullBasis = resolveBasis(ticket, winner.award.basis ?? ["base_fare"]);
+    const { parts, method } = prorateBasis(ticket, fullBasis.basis);
     notes.push(
       method === "equal"
         ? "coupon-scoped rule; base fare prorated equally (no fare-calc weights available)"
@@ -448,19 +596,31 @@ export function calculateCarrierLayer(
         notes.push(`coupon ${coupon.n} (${coupon.origin}–${coupon.destination}): no clause`);
         return;
       }
-      const r = applyAward(sel.evaluation.rule.award, ticket, { defaultRounding }, undefined, parts[i], 1);
-      total = add(total, r.commission);
-      if (r.basis) basisTotal = add(basisTotal, r.basis);
+      const rule = sel.evaluation.rule;
+      const table = rule.award.rateTable;
+      const resolved = table
+        ? rateFromTable(table, [coupon])
+        : { rate: rule.award.rate ?? "0", ambiguous: false, note: `${rule.award.rate}%` };
+
       conditions.push(...sel.evaluation.traces);
-      if (r.basisTrace) {
+      basisTotal = add(basisTotal, parts[i]);
+
+      if (resolved.rate === null) {
         trace.push({
           component: `coupon ${coupon.n} ${coupon.origin}–${coupon.destination}`,
-          amount: parts[i],
-          included: true,
-          reason: `${sel.evaluation.rule.id} → ${formatMoney(r.commission)}`,
+          amount: parts[i], included: false, reason: resolved.note,
         });
+        notes.push(`coupon ${coupon.n}: ${resolved.note}`);
+        return;
       }
-      notes.push(...r.notes.map((n) => `coupon ${coupon.n}: ${n}`));
+
+      const earned = applyRate(parts[i], resolved.rate, defaultRounding);
+      total = add(total, earned);
+      trace.push({
+        component: `coupon ${coupon.n} ${coupon.origin}–${coupon.destination}`,
+        amount: parts[i], included: true,
+        reason: `${rule.id} at ${resolved.rate}% → ${formatMoney(earned)}`,
+      });
     });
 
     return {
@@ -470,7 +630,7 @@ export function calculateCarrierLayer(
       ruleVersion: winner.version,
       clause: winner.source?.clause,
       basis: basisTotal,
-      basisTrace: trace,
+      basisTrace: [...fullBasis.trace, ...trace],
       commission: total,
       conditions,
       rejected: selection.rejected,
@@ -490,8 +650,11 @@ export function calculateCarrierLayer(
 
   return {
     layer: "carrier_to_host",
-    outcome:
-      winner.award.kind === "nil" || (result.nil && !result.accrual) ? "NIL" : "CALCULATED",
+    outcome: result.ambiguous
+      ? "AMBIGUOUS"
+      : winner.award.kind === "nil" || (result.nil && !result.accrual)
+        ? "NIL"
+        : "CALCULATED",
     ruleId: winner.id,
     ruleVersion: winner.version,
     clause: winner.source?.clause,
@@ -502,7 +665,7 @@ export function calculateCarrierLayer(
     conditions: selection.evaluation.traces,
     rejected: selection.rejected,
     notes: [...notes, ...result.notes],
-    rate: winner.award.rate,
+    rate: result.rateUsed ?? winner.award.rate,
   };
 }
 
