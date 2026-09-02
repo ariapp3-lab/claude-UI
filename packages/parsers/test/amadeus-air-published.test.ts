@@ -113,19 +113,29 @@ describe("this one is a published fare", () => {
 describe("what the EL AL contract makes of it", () => {
   const w = calculate({ ticket: r.tickets[0], rules: LIVE });
 
-  it("pays nothing: the journey originates in Switzerland", () => {
-    expect(w.carrier.outcome).toBe("NIL");
+  it("earns nothing on the reissue: the journey originates in Switzerland", () => {
     expect(w.carrier.ruleId).toBe("LY-MAINST-2026-NON-US-ORIGIN");
     expect(w.carrier.clause).toBe("§7");
-    expect(f(w.carrier.commission)).toBe("0.00");
+    expect(f(w.carrier.gross!)).toBe("0.00");
+  });
+
+  it("claws back the 100.00 the replaced ticket had already taken", () => {
+    // The original was issued in Newark and earned 100.00. Reissued, the
+    // journey no longer qualifies under clause 7, so the commission comes
+    // back. The outcome says CALCULATED rather than NIL, because a clawback
+    // is a computed amount and not an absence of one.
+    expect(f(w.carrier.priorCommission!)).toBe("100.00");
+    expect(f(w.carrier.commission)).toBe("-100.00");
+    expect(w.carrier.outcome).toBe("CALCULATED");
+    expect(w.flags.some((x) => /owed back/.test(x.message))).toBe(true);
   });
 
   it("disagrees with the 5% the file claims — worth a human's attention", () => {
-    // The contract says nil on a ZRH-originating journey; the ticket claims
-    // 77.30. This is precisely the variance the reconciliation queue exists
-    // for, and the engine states both figures rather than picking one.
+    // The file claims 77.30 on a journey the contract pays nothing for, and
+    // 100.00 is owed back on top. The engine states every figure rather than
+    // reconciling them for you.
     expect(f(r.passengers[0].reportedFM!.amount)).toBe("77.30");
-    expect(f(w.carrier.commission)).toBe("0.00");
-    expect(r.passengers[0].reportedFM!.amount.units - w.carrier.commission.units).toBe(7730n);
+    expect(f(w.carrier.commission)).toBe("-100.00");
+    expect(r.passengers[0].reportedFM!.amount.units - w.carrier.commission.units).toBe(17730n);
   });
 });

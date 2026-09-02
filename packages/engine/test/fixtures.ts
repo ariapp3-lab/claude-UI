@@ -285,12 +285,25 @@ export const SA4471_FEE_SCHEDULE: Rule[] = [
   SA4471_MERCHANT_FEE,
 ];
 
-/** An exchange of the business ticket, collecting a fare difference. */
+/**
+ * An exchange of the business ticket, collecting a 340.00 fare difference.
+ *
+ * The exchange block is not optional decoration: the original earned 171.20 at
+ * 8%, and a reissue that cannot say so gets priced on the whole new fare.
+ */
 export const TICKET_LY_EXCHANGE: TicketDocument = {
   ...TICKET_LY_BUSINESS,
   ticketNumber: "114-2405550001",
   documentType: "EXCH",
   inRespectOf: "114-2401234567",
+  exchange: {
+    originalTicket: "114-2401234567",
+    originalBase: usd("2140.00"),
+    originalTax: usd("744.30"),
+    originalCommission: usd("171.20"),
+    additionalCollection: usd("340.00"),
+    changeFee: usd("25.00"),
+  },
   baseFare: usd("2480.00"),
   taxes: [
     { code: "YQ", amount: usd("386.00") },

@@ -750,7 +750,17 @@ export function calculateCarrierLayer(
     `reissue: ${formatMoney(gross)} on the new fare less ${formatMoney(prior)} already ` +
       `taken on ${ticket.exchange.originalTicket}`,
   );
-  return { ...rest, gross, priorCommission: prior, commission, notes };
+  return {
+    ...rest,
+    gross,
+    priorCommission: prior,
+    commission,
+    // A clawback is a computed amount, not an absence of one. Leaving the
+    // outcome at NIL beside a non-zero figure invites a reader to trust the
+    // label over the number.
+    outcome: isZero(commission) ? rest.outcome : "CALCULATED",
+    notes,
+  };
 }
 
 // ---------------------------------------------------------------------------

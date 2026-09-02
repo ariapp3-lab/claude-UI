@@ -84,10 +84,23 @@ describe("transaction fees", () => {
 
   it("nets the sub-agent to share less every fee", () => {
     const w = calculate({ ticket: TICKET_LY_EXCHANGE, rules });
-    // 2480.00 × 8% = 198.40 carrier; residual 7/8 = 173.60 to the sub-agent.
-    expect(f(w.carrier.commission)).toBe("198.40");
-    expect(f(w.subAgent!.commission)).toBe("173.60");
-    expect(f(w.netToSubAgent)).toBe("67.99"); // 173.60 − 25.00 − 80.61 = 67.99
+    // The reissue earns 198.40 on the new fare, less the 171.20 already taken
+    // on the ticket it replaces: 27.20. The sub-agent's residual of that is
+    // 23.80 — and the fees on the same transaction come to 105.61.
+    expect(f(w.carrier.gross!)).toBe("198.40");
+    expect(f(w.carrier.commission)).toBe("27.20");
+    expect(f(w.subAgent!.commission)).toBe("23.80");
+    expect(f(w.netToSubAgent)).toBe("-81.81");
+  });
+
+  it("shows a sub-agent paying to issue a reissue", () => {
+    // Worth stating plainly, because it is the shape of a real problem: on a
+    // small fare difference the host's fee schedule can exceed the whole
+    // commission the reissue generates.
+    const w = calculate({ ticket: TICKET_LY_EXCHANGE, rules });
+    expect(w.netToSubAgent.units).toBeLessThan(0n);
+    const fees = w.fees.reduce((a, x) => a + x.amount.units, 0n);
+    expect(-fees).toBeGreaterThan(w.subAgent!.commission.units);
   });
 
   it("applies the minimum on a percentage fee", () => {
@@ -147,6 +160,6 @@ describe("the sub-agent's own view", () => {
     expect(text).toContain("exchange fee");
     expect(text).toContain("merchant fee");
     expect(text).toContain("-25.00");
-    expect(text).toContain("67.99");
+    expect(text).toContain("-81.81");
   });
 });
