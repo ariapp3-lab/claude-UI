@@ -1,0 +1,850 @@
+<title>Host Agency Commission Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#F1F2ED; --surface:#FBFBF8; --surface-2:#E7E9E2;
+  --ink:#171B21; --ink-2:#4A5561; --ink-3:#78838F;
+  --rule:#D5D9D0; --rule-strong:#B2B9AD;
+  --navy:#1B3A5C; --navy-ink:#1B3A5C; --navy-soft:#E1E8F0;
+  --credit:#2C6A4E; --credit-soft:#DCE9E0;
+  --flag:#A24E1B; --flag-soft:#F3E2D4;
+  --shadow:0 1px 2px rgba(23,27,33,.06), 0 8px 24px -16px rgba(23,27,33,.28);
+  --serif:"IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --sans:"IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --paper:#0F1218; --surface:#171B22; --surface-2:#1E242D;
+    --ink:#E7EAED; --ink-2:#A5B0BC; --ink-3:#78838F;
+    --rule:#282F39; --rule-strong:#3C454F;
+    --navy:#88B6E2; --navy-ink:#C6DCF1; --navy-soft:#16232F;
+    --credit:#66BE93; --credit-soft:#122419;
+    --flag:#E08E55; --flag-soft:#291C12;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --paper:#0F1218; --surface:#171B22; --surface-2:#1E242D;
+  --ink:#E7EAED; --ink-2:#A5B0BC; --ink-3:#78838F;
+  --rule:#282F39; --rule-strong:#3C454F;
+  --navy:#88B6E2; --navy-ink:#C6DCF1; --navy-soft:#16232F;
+  --credit:#66BE93; --credit-soft:#122419;
+  --flag:#E08E55; --flag-soft:#291C12;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--navy)}
+:focus-visible{outline:2px solid var(--navy); outline-offset:3px; border-radius:2px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important; transition:none!important}}
+
+/* ---------- shell ---------- */
+.shell{max-width:1180px; margin:0 auto; padding:0 24px 96px}
+.masthead{
+  border-bottom:2px solid var(--ink); padding:40px 0 20px; margin-bottom:0;
+}
+.docmeta{
+  display:flex; flex-wrap:wrap; gap:8px 28px; font-family:var(--mono);
+  font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3);
+  margin-bottom:22px;
+}
+.docmeta b{color:var(--ink-2); font-weight:500}
+.masthead h1{
+  font-family:var(--serif); font-weight:600; font-size:clamp(30px,4.6vw,50px);
+  line-height:1.06; letter-spacing:-.015em; margin:0 0 12px; text-wrap:balance; max-width:19ch;
+}
+.standfirst{
+  font-size:17.5px; color:var(--ink-2); max-width:62ch; margin:0; line-height:1.55;
+}
+.statusline{
+  display:flex; flex-wrap:wrap; gap:10px; margin-top:22px;
+}
+.tag{
+  font-family:var(--mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+  padding:4px 9px; border:1px solid var(--rule-strong); color:var(--ink-2); background:var(--surface);
+}
+.tag.on{border-color:var(--navy); color:var(--navy-ink); background:var(--navy-soft)}
+
+.body-grid{display:grid; grid-template-columns:1fr; gap:0}
+@media (min-width:1020px){
+  .body-grid{grid-template-columns:212px minmax(0,1fr); gap:56px; align-items:start}
+}
+
+/* ---------- toc ---------- */
+nav.toc{display:none}
+@media (min-width:1020px){
+  nav.toc{
+    display:block; position:sticky; top:24px; padding-top:44px;
+    max-height:calc(100vh - 48px); overflow-y:auto;
+  }
+}
+.toc-h{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); padding-bottom:8px; border-bottom:1px solid var(--rule); margin-bottom:10px;
+}
+.toc ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px}
+.toc a{
+  display:grid; grid-template-columns:26px 1fr; gap:6px; padding:5px 0;
+  text-decoration:none; color:var(--ink-2); font-size:13.5px; line-height:1.32;
+}
+.toc a span{font-family:var(--mono); font-size:11.5px; color:var(--ink-3)}
+.toc a:hover{color:var(--navy)}
+
+/* ---------- sections ---------- */
+main{padding-top:44px; min-width:0}
+section{padding-bottom:12px; margin-bottom:36px}
+section + section{border-top:1px solid var(--rule); padding-top:36px}
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--navy); margin:0 0 10px;
+}
+h2{
+  font-family:var(--serif); font-weight:600; font-size:clamp(23px,2.6vw,29px);
+  line-height:1.2; letter-spacing:-.01em; margin:0 0 16px; text-wrap:balance;
+}
+h3{
+  font-family:var(--sans); font-weight:600; font-size:16px; letter-spacing:.005em;
+  margin:32px 0 10px; color:var(--ink);
+}
+h4{
+  font-family:var(--mono); font-weight:500; font-size:12px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3); margin:26px 0 8px;
+}
+p{margin:0 0 14px; max-width:68ch}
+ul,ol.spec{margin:0 0 16px; padding-left:20px; max-width:68ch}
+li{margin-bottom:7px}
+li::marker{color:var(--ink-3)}
+strong{font-weight:600}
+code{
+  font-family:var(--mono); font-size:.88em; background:var(--surface-2);
+  padding:1px 5px; border-radius:2px; color:var(--ink);
+}
+.lede{font-size:17px; color:var(--ink-2); max-width:66ch}
+
+/* ---------- callout ---------- */
+.note{
+  border-left:3px solid var(--flag); background:var(--flag-soft);
+  padding:14px 18px; margin:20px 0; max-width:68ch;
+}
+.note p{margin:0; font-size:14.5px; color:var(--ink)}
+.note .k{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--flag); display:block; margin-bottom:5px;
+}
+
+/* ---------- code ---------- */
+.code{
+  background:var(--surface); border:1px solid var(--rule); border-left:3px solid var(--navy);
+  overflow-x:auto; margin:18px 0;
+}
+.code .cap{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-3); padding:9px 16px 0;
+}
+.code pre{
+  margin:0; padding:10px 16px 16px; font-family:var(--mono); font-size:12.6px;
+  line-height:1.62; color:var(--ink-2); white-space:pre;
+}
+.code pre b{color:var(--navy-ink); font-weight:500}
+.code pre i{color:var(--ink-3); font-style:normal}
+.code pre u{color:var(--credit); text-decoration:none}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto; margin:18px 0; border:1px solid var(--rule); background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:13.6px; min-width:520px}
+th{
+  text-align:left; font-family:var(--mono); font-weight:500; font-size:10.5px;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3);
+  padding:10px 14px; border-bottom:1px solid var(--rule-strong); white-space:nowrap;
+  background:var(--surface-2);
+}
+td{padding:9px 14px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500}
+td.m,th.m{font-family:var(--mono); font-variant-numeric:tabular-nums}
+td.num{text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink)}
+th.num{text-align:right}
+
+/* ---------- ticket / waterfall ---------- */
+.calc{
+  display:grid; gap:18px; margin:22px 0;
+}
+@media (min-width:760px){.calc{grid-template-columns:1fr 1fr}}
+.doc{
+  background:var(--surface); border:1px solid var(--rule); box-shadow:var(--shadow);
+}
+.doc-hd{
+  padding:12px 16px; border-bottom:1px dashed var(--rule-strong);
+  display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;
+}
+.doc-hd .no{font-family:var(--mono); font-size:13px; font-weight:500; color:var(--ink)}
+.doc-hd .rt{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3)}
+.rows{padding:10px 16px 14px}
+.row{
+  display:flex; justify-content:space-between; gap:16px; padding:3.5px 0;
+  font-family:var(--mono); font-size:12.8px; font-variant-numeric:tabular-nums;
+}
+.row .l{color:var(--ink-2)}
+.row .v{color:var(--ink)}
+.row.dim .l,.row.dim .v{color:var(--ink-3)}
+.row.strike .v{text-decoration:line-through}
+.row.sum{border-top:1px solid var(--rule); margin-top:6px; padding-top:7px; font-weight:500}
+.row.key{background:var(--credit-soft); margin:7px -16px 0; padding:8px 16px; border-top:1px solid var(--rule)}
+.row.key .l{color:var(--ink); font-weight:500}
+.row.key .v{color:var(--credit); font-weight:600}
+.row.neg .v{color:var(--flag)}
+.doc-ft{
+  padding:9px 16px; border-top:1px dashed var(--rule-strong);
+  font-family:var(--mono); font-size:10.8px; color:var(--ink-3); line-height:1.5;
+}
+
+/* ---------- pipeline ---------- */
+.pipe{
+  display:flex; flex-wrap:wrap; gap:8px; margin:22px 0; align-items:stretch;
+}
+.stage{
+  flex:1 1 150px; background:var(--surface); border:1px solid var(--rule);
+  border-top:2px solid var(--navy); padding:12px 13px;
+}
+.stage .n{
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--ink-3); display:block; margin-bottom:5px;
+}
+.stage .t{font-weight:600; font-size:14px; display:block; margin-bottom:4px}
+.stage .d{font-size:12.4px; color:var(--ink-2); line-height:1.45; display:block}
+
+/* ---------- phases ---------- */
+.phase{
+  display:grid; grid-template-columns:auto 1fr; gap:0 18px; align-items:start;
+  padding:16px 0; border-bottom:1px solid var(--rule);
+}
+.phase:last-child{border-bottom:none}
+.phase .pn{
+  font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--navy-ink);
+  background:var(--navy-soft); border:1px solid var(--rule); padding:3px 8px; white-space:nowrap;
+}
+.phase h3{margin:0 0 5px; font-size:15.5px}
+.phase p{margin:0 0 6px; font-size:14px}
+.phase .out{font-family:var(--mono); font-size:11.6px; color:var(--ink-3)}
+
+/* ---------- questions ---------- */
+ol.q{list-style:none; padding:0; margin:18px 0 0; counter-reset:q; max-width:70ch}
+ol.q li{
+  counter-increment:q; display:grid; grid-template-columns:32px 1fr; gap:12px;
+  padding:13px 0; border-bottom:1px solid var(--rule); margin:0;
+}
+ol.q li::before{
+  content:"Q" counter(q); font-family:var(--mono); font-size:11.5px; color:var(--navy-ink);
+  padding-top:2px;
+}
+ol.q b{display:block; font-weight:600; margin-bottom:2px}
+ol.q span{font-size:14px; color:var(--ink-2)}
+
+footer{
+  margin-top:56px; padding-top:20px; border-top:2px solid var(--ink);
+  font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--ink-3);
+  display:flex; flex-wrap:wrap; gap:6px 24px;
+}
+</style>
+
+<div class="shell">
+
+<header class="masthead">
+  <div class="docmeta">
+    <span>Doc <b>CE-001</b></span>
+    <span>Rev <b>0.1 — Draft</b></span>
+    <span>Settlement <b>ARC / US</b></span>
+    <span>Status <b>For review</b></span>
+  </div>
+  <h1>Host Agency Commission Engine</h1>
+  <p class="standfirst">A technical specification for calculating, explaining and reconciling airline commission across two contract layers — carrier&nbsp;→ host agency, and host agency&nbsp;→ sub&#8209;agent — from a ticket document to a settled payout.</p>
+  <div class="statusline">
+    <span class="tag on">Deterministic engine</span>
+    <span class="tag on">Append-only ledger</span>
+    <span class="tag">ARC IAR ingestion</span>
+    <span class="tag">GDS print capture</span>
+    <span class="tag">BSP-ready</span>
+  </div>
+</header>
+
+<div class="body-grid">
+
+<nav class="toc" aria-label="Contents">
+  <div class="toc-h">Contents</div>
+  <ol>
+    <li><a href="#s1"><span>§1</span>What it does</a></li>
+    <li><a href="#s2"><span>§2</span>The money on a ticket</a></li>
+    <li><a href="#s3"><span>§3</span>Canonical ticket model</a></li>
+    <li><a href="#s4"><span>§4</span>Contract &amp; rule model</a></li>
+    <li><a href="#s5"><span>§5</span>Rule resolution</a></li>
+    <li><a href="#s6"><span>§6</span>The waterfall</a></li>
+    <li><a href="#s7"><span>§7</span>Document lifecycle</a></li>
+    <li><a href="#s8"><span>§8</span>Ingestion adapters</a></li>
+    <li><a href="#s9"><span>§9</span>Reconciliation</a></li>
+    <li><a href="#s10"><span>§10</span>Data model</a></li>
+    <li><a href="#s11"><span>§11</span>Architecture</a></li>
+    <li><a href="#s12"><span>§12</span>Correctness</a></li>
+    <li><a href="#s13"><span>§13</span>Build phases</a></li>
+    <li><a href="#s14"><span>§14</span>Open decisions</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="s1">
+  <p class="eyebrow">§1 — Scope</p>
+  <h2>What the system does</h2>
+  <p class="lede">One engine answers the same question from two sides of the same ticket: <em>how much commission is owed, by whom, to whom, and on what authority?</em></p>
+
+  <p>The host agency holds contracts with carriers. Each contract sets a commission rate that varies by market, booking class, fare type and date. Today someone reads a few thousand tickets a week and computes those rates by hand, then chases the carrier for what was not paid. That is the first job.</p>
+  <p>Beneath the host sit sub-agents, each with their own agreement — a share of the host's commission on commissionable business, and a service fee on business that carries none. A sub-agent needs the same answer for their own ticket, before and after the host's cut. That is the second job, and it is the same arithmetic run one layer down.</p>
+
+  <h3>In scope</h3>
+  <ul>
+    <li>Per-ticket commission calculation with a complete, human-readable audit trace</li>
+    <li>Two contract layers, where the sub-agent layer derives from the carrier layer rather than duplicating it</li>
+    <li>Bulk reconciliation of a settlement period against expected commission, with a variance work queue</li>
+    <li>Full document lifecycle — void, refund, exchange/reissue, ADM/ACM — with clawbacks posted as reversing entries</li>
+    <li>Ingestion from ARC reporting, GDS feeds, print-stream capture, ticket PDFs and manual entry</li>
+    <li>Statement generation and payout for sub-agents</li>
+  </ul>
+
+  <h3>Explicitly out of scope for v1</h3>
+  <ul>
+    <li>Booking, ticketing or any write path into a GDS. This system reads and computes; it never issues.</li>
+    <li>General accounting. It produces the commission ledger and exports; it is not the agency's general ledger.</li>
+    <li>Fare pricing or availability. It reads what a ticket <em>was</em> priced at, not what it could have been.</li>
+  </ul>
+</section>
+
+<section id="s2">
+  <p class="eyebrow">§2 — Domain</p>
+  <h2>The money on a ticket</h2>
+  <p>A ticket total is never one number, and commission is never a percentage of it. The total decomposes into a <strong>base fare</strong> plus an itemised stack of taxes and fees, each carrying a code. The distinction that decides most of the money is between government taxes and <strong>carrier-imposed surcharges</strong>:</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th class="m">Code</th><th>What it is</th><th>Commissionable?</th></tr></thead>
+      <tbody>
+        <tr><td class="m">—</td><td>Base fare — the filed fare itself</td><td>Yes, almost always the sole basis</td></tr>
+        <tr><td class="m">YQ / YR</td><td>Carrier-imposed surcharge. Set by the airline, not a government.</td><td><strong>Contract-dependent.</strong> Usually excluded; some contracts include it. Single biggest error source.</td></tr>
+        <tr><td class="m">US</td><td>US international transportation tax</td><td>No</td></tr>
+        <tr><td class="m">ZP</td><td>US domestic flight segment tax</td><td>No</td></tr>
+        <tr><td class="m">XF</td><td>US passenger facility charge (airport)</td><td>No</td></tr>
+        <tr><td class="m">AY</td><td>US security service fee</td><td>No</td></tr>
+        <tr><td class="m">IL, GB, …</td><td>Foreign government taxes and airport charges</td><td>No</td></tr>
+        <tr><td class="m">XT</td><td>Aggregation of several small taxes — must be exploded back to components on ingest</td><td>No</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="k">Design consequence</span>
+    <p>Taxes are stored as an itemised array keyed by code, never as a single <code>total_tax</code> figure. A contract that makes YQ commissionable is then a one-line change to the rule's <code>basis</code>, not a schema migration — and a ticket ingested before that contract existed can still be recomputed correctly.</p>
+  </div>
+
+  <h3>What actually selects a commission rate</h3>
+  <p>A contract clause is a set of conditions and an outcome. The conditions that appear in real carrier agreements:</p>
+  <ul>
+    <li><strong>Validating carrier</strong> — the plating carrier on the ticket (LY = numeric code 114), not the operating carrier of any segment</li>
+    <li><strong>Point of sale</strong> and point of commencement</li>
+    <li><strong>Market</strong> — usually a <em>geography pair</em> (US→IL, transatlantic, domestic), occasionally a specific O&amp;D. Rarely a literal city pair.</li>
+    <li><strong>Booking class (RBD)</strong> — inclusion or exclusion lists, often banded</li>
+    <li><strong>Fare basis</strong> — matched by pattern, with exclusion patterns for promotional and group fares</li>
+    <li><strong>Tour code</strong> — presence indicates a private or net fare, which normally carries nil commission</li>
+    <li><strong>Fare type</strong> — published / private / group / consolidator</li>
+    <li><strong>Two independent date axes</strong> — date of issue and date(s) of travel, each with its own window</li>
+    <li><strong>Passenger type</strong> — ADT / CHD / INF, with infants commonly excluded</li>
+  </ul>
+
+  <h4>Outcome shapes</h4>
+  <ul>
+    <li><code>percent</code> of a named basis (base fare, or base + YQ)</li>
+    <li><code>percent</code> with a cap or a floor amount</li>
+    <li><code>flat</code> amount per ticket or per coupon</li>
+    <li><code>nil</code> — zero commission, which is a positive assertion, not an absence of rule</li>
+    <li><code>plb</code> — a productivity-linked bonus or override, target-based and often retroactive, <strong>accrued per ticket but settled at period end</strong></li>
+  </ul>
+</section>
+
+<section id="s3">
+  <p class="eyebrow">§3 — Data</p>
+  <h2>Canonical ticket model</h2>
+  <p>Every ingestion source, from a structured ARC file to a scanned PDF, normalises into one shape. Nothing downstream knows or cares where a ticket came from. Fields marked <code>required</code> are the minimum for a defensible calculation; a ticket missing one is queued for enrichment rather than calculated on a guess.</p>
+
+  <div class="code">
+    <div class="cap">packages/schema — Ticket (abridged)</div>
+<pre><b>TicketDocument</b> {
+  ticket_number      <i>"114-2401234567"</i>   <u>required</u>  <i>// 3-digit carrier + 10</i>
+  document_type      <i>TKT | EXCH | RFND | VOID | EMD | ADM | ACM</i>
+  conjunction_of     <i>string | null</i>      <i>// >4 coupons spill to a second stock</i>
+  validating_carrier <i>"LY"</i>               <u>required</u>
+  iata_number        <i>"05512345"</i>         <i>// issuing agency</i>
+  issue_date         <i>Date</i>               <u>required</u>
+  pos_country        <i>"US"</i>               <u>required</u>
+  currency           <i>"USD"</i>              <u>required</u>
+
+  base_fare          <i>Money</i>              <u>required</u>  <i>// integer minor units</i>
+  equiv_fare_paid    <i>Money | null</i>       <i>// when sold in a second currency</i>
+  taxes              <i>TaxItem[]</i>          <u>required</u>  <i>// { code, amount }, XT exploded</i>
+  total              <i>Money</i>              <u>required</u>
+
+  fare_calc          <i>string</i>             <i>// linear construction; source for prorate</i>
+  tour_code          <i>string | null</i>      <i>// presence ⇒ net fare</i>
+  ticket_designator  <i>string | null</i>
+  fare_type          <i>published | private | group | consolidator</i>
+  pax_type           <i>ADT | CHD | INF | ...</i>
+  reported_commission <i>Money | null</i>      <i>// what the agent claimed, if known</i>
+
+  coupons            <i>Coupon[]</i>           <u>required</u>
+}
+
+<b>Coupon</b> {
+  n                  <i>1..4</i>
+  origin, dest       <i>"JFK", "TLV"</i>
+  marketing_carrier  <i>"LY"</i>
+  operating_carrier  <i>"LY"</i>
+  flight_number      <i>"LY 028"</i>
+  rbd                <i>"C"</i>
+  fare_basis         <i>"CRTUS"</i>
+  departure          <i>Date</i>
+  status             <i>OK | VOID | RFND | USED | EXCH</i>
+  prorated_base      <i>Money | null</i>       <i>// derived, see §5</i>
+}</pre>
+  </div>
+
+  <div class="note">
+    <span class="k">Known hard problem</span>
+    <p>A multi-coupon ticket under a market-scoped rule forces a choice: does the rule match on the ticket-level origin and destination, or per coupon with the base fare prorated between them? The fare calculation string is the only real source for a prorate. This is decided <strong>per contract</strong> via an explicit <code>scope: "ticket" | "coupon"</code> field, never inferred — see Q1 in §14.</p>
+  </div>
+</section>
+
+<section id="s4">
+  <p class="eyebrow">§4 — Rules</p>
+  <h2>Contract and rule model</h2>
+  <p>Contracts are stored as data, versioned and effective-dated. They are never compiled into conditionals. A carrier that changes eight points to six next quarter is a new rule version with a new effective window — and every ticket already calculated under the old version keeps its old, correct answer.</p>
+
+  <h3>Layer 1 — carrier to host agency</h3>
+  <div class="code">
+    <div class="cap">rule — carrier layer</div>
+<pre>{
+  <b>"id"</b>: "LY-US-IL-J-2026H1",
+  <b>"layer"</b>: "carrier_to_host",
+  <b>"contract_id"</b>: "ct_ly_host_2026",
+  <b>"version"</b>: 3,
+  <b>"priority"</b>: 700,
+  <b>"scope"</b>: "ticket",
+
+  <b>"effective"</b>: {
+    "issued_between": ["2026-01-01", "2026-06-30"],
+    "travel_between": ["2026-01-01", "2026-12-31"]
+  },
+
+  <b>"match"</b>: {
+    "validating_carrier": "LY",
+    "pos_country":        "US",
+    "market":     { "from": "US", "to": "IL", "direction": "either" },
+    "rbd":        { "in": ["J", "C", "D", "I"] },
+    "fare_basis": { "matches": "^[JCDI]", "not_matches": "(PROMO|GRP|IT)" },
+    "tour_code":  { "absent": true },
+    "fare_type":  { "in": ["published"] },
+    "pax_type":   { "in": ["ADT", "CHD"] }
+  },
+
+  <b>"award"</b>: {
+    "kind":     "percent",
+    "rate":     "8.00",
+    "basis":    ["base_fare"],        <i>// YQ deliberately absent</i>
+    "rounding": { "mode": "half_up", "dp": 2 }
+  },
+
+  <b>"source"</b>: {                        <i>// the audit link back to paper</i>
+    "document": "LY-HOST-2026.pdf",
+    "clause":   "§4.2(a)", "page": 7,
+    "extracted_by": "ai", "approved_by": "u_412", "approved_at": "2026-01-08"
+  }
+}</pre>
+  </div>
+
+  <h3>Layer 2 — host agency to sub-agent</h3>
+  <p>The critical modelling decision. A sub-agent's seven points are expressed <strong>relative to the carrier rule that fired</strong>, not as a standalone eight-becomes-seven constant. When the carrier moves to six, the sub-agent automatically moves to five with no rule edit and no silent overpayment.</p>
+
+  <div class="code">
+    <div class="cap">rule — sub-agent revenue share</div>
+<pre>{
+  <b>"id"</b>: "SA4471-LY-DEFAULT",
+  <b>"layer"</b>: "host_to_subagent",
+  <b>"subagent_id"</b>: "sa_4471",
+  <b>"priority"</b>: 500,
+
+  <b>"match"</b>: { "validating_carrier": "LY" },
+
+  <b>"award"</b>: {
+    "kind":  "share_of_upstream",
+    "mode":  "points",           <i>// "points" | "fraction" | "absolute"</i>
+    "points": "7.00",            <i>// of whatever the carrier rule awarded</i>
+    "when_upstream_nil": "no_share"
+  }
+}</pre>
+  </div>
+
+  <div class="code">
+    <div class="cap">rule — sub-agent service fee on nil-commission business</div>
+<pre>{
+  <b>"id"</b>: "SA4471-FEE-DOM",
+  <b>"layer"</b>: "host_to_subagent",
+  <b>"subagent_id"</b>: "sa_4471",
+  <b>"priority"</b>: 600,
+
+  <b>"match"</b>: {
+    "market": { "from": "US", "to": "US" },
+    "upstream_commission": "nil"     <i>// only where the host earns nothing</i>
+  },
+
+  <b>"award"</b>: {
+    "kind": "fee", "amount": "10.00", "currency": "USD",
+    "per": "ticket", "direction": "debit_subagent"
+  }
+}</pre>
+  </div>
+
+  <p>A sub-agent agreement is therefore an ordered set of these two kinds of rule, plus optional absolute overrides where a sub-agent genuinely negotiated a flat rate independent of the carrier deal.</p>
+</section>
+
+<section id="s5">
+  <p class="eyebrow">§5 — Evaluation</p>
+  <h2>Rule resolution and the pipeline</h2>
+
+  <div class="pipe">
+    <div class="stage"><span class="n">01</span><span class="t">Ingest</span><span class="d">Source adapter reads the file, feed or document as-is.</span></div>
+    <div class="stage"><span class="n">02</span><span class="t">Normalise</span><span class="d">Map to the canonical ticket. Explode XT. Validate required fields.</span></div>
+    <div class="stage"><span class="n">03</span><span class="t">Match</span><span class="d">Select the winning carrier rule, then the sub-agent rules.</span></div>
+    <div class="stage"><span class="n">04</span><span class="t">Compute</span><span class="d">Basis → commission → share → fees, in integer minor units.</span></div>
+    <div class="stage"><span class="n">05</span><span class="t">Post</span><span class="d">Append immutable ledger entries with a full trace.</span></div>
+    <div class="stage"><span class="n">06</span><span class="t">Reconcile</span><span class="d">Match against what was actually paid; raise variances.</span></div>
+  </div>
+
+  <h3>Resolution order</h3>
+  <ol class="spec">
+    <li>Filter to rules whose <code>effective</code> windows contain both the issue date and the relevant travel dates.</li>
+    <li>Filter to rules whose <code>match</code> block is fully satisfied. Every declared condition must hold; an absent condition matches everything.</li>
+    <li>If more than one survives, the highest <code>priority</code> wins. On a tie, the rule with more declared conditions wins — <strong>specificity</strong>.</li>
+    <li>If a tie remains after specificity, the engine <strong>does not choose</strong>. It emits <code>AMBIGUOUS</code>, names both rules, and queues the ticket for a human.</li>
+    <li>If nothing matches, it emits <code>NO_RULE</code> and queues. It never falls back to zero silently, because a silent zero is indistinguishable from a correct nil.</li>
+  </ol>
+
+  <div class="note">
+    <span class="k">Non-negotiable</span>
+    <p>A wrong confident number is worse than a queued one. <code>AMBIGUOUS</code> and <code>NO_RULE</code> are first-class outcomes with their own queues, not error states to be smoothed over.</p>
+  </div>
+
+  <h3>Every calculation carries its trace</h3>
+  <p>The result object stores the rule id and version that fired, each condition with the ticket value it was tested against, the rules that were considered and why they lost, the basis composition, the arithmetic at each step, and the engine version. This is what turns <em>"our system says $149.80"</em> into a claim that survives a carrier dispute six months later.</p>
+</section>
+
+<section id="s6">
+  <p class="eyebrow">§6 — Output</p>
+  <h2>The waterfall</h2>
+  <p>The unit of output is not a number. It is a waterfall from ticket total down to net payable, with each line attributable to a clause. Two worked examples — one commissionable, one not — show both directions of the sub-agent relationship.</p>
+
+  <div class="calc">
+    <div class="doc">
+      <div class="doc-hd">
+        <span class="no">114-2401234567</span>
+        <span class="rt">LY · JFK–TLV–JFK · RBD C</span>
+      </div>
+      <div class="rows">
+        <div class="row"><span class="l">Base fare</span><span class="v">2,140.00</span></div>
+        <div class="row strike dim"><span class="l">YQ carrier surcharge</span><span class="v">386.00</span></div>
+        <div class="row strike dim"><span class="l">US · int'l transportation</span><span class="v">45.80</span></div>
+        <div class="row strike dim"><span class="l">AY · security</span><span class="v">11.20</span></div>
+        <div class="row strike dim"><span class="l">XF · JFK facility</span><span class="v">4.50</span></div>
+        <div class="row strike dim"><span class="l">IL · Israel taxes</span><span class="v">296.80</span></div>
+        <div class="row sum"><span class="l">Ticket total</span><span class="v">2,884.30</span></div>
+        <div class="row sum"><span class="l">Commissionable basis</span><span class="v">2,140.00</span></div>
+        <div class="row"><span class="l">Carrier rate · 8.00%</span><span class="v">171.20</span></div>
+        <div class="row"><span class="l">Sub-agent share · 7 of 8 pts</span><span class="v">149.80</span></div>
+        <div class="row dim"><span class="l">Host spread · 1 pt</span><span class="v">21.40</span></div>
+        <div class="row dim"><span class="l">Service fees</span><span class="v">0.00</span></div>
+        <div class="row key"><span class="l">Net to sub-agent</span><span class="v">149.80</span></div>
+      </div>
+      <div class="doc-ft">Rule LY-US-IL-J-2026H1 v3 · LY-HOST-2026.pdf §4.2(a)<br>YQ excluded: basis = base_fare only</div>
+    </div>
+
+    <div class="doc">
+      <div class="doc-hd">
+        <span class="no">001-2409876543</span>
+        <span class="rt">AA · JFK–MIA · RBD Q · domestic</span>
+      </div>
+      <div class="rows">
+        <div class="row"><span class="l">Base fare</span><span class="v">218.00</span></div>
+        <div class="row strike dim"><span class="l">ZP · segment tax</span><span class="v">10.20</span></div>
+        <div class="row strike dim"><span class="l">AY · security</span><span class="v">11.20</span></div>
+        <div class="row strike dim"><span class="l">XF · facility</span><span class="v">9.00</span></div>
+        <div class="row strike dim"><span class="l">US · excise 7.5%</span><span class="v">16.20</span></div>
+        <div class="row sum"><span class="l">Ticket total</span><span class="v">264.60</span></div>
+        <div class="row sum"><span class="l">Commissionable basis</span><span class="v">0.00</span></div>
+        <div class="row"><span class="l">Carrier rate · nil</span><span class="v">0.00</span></div>
+        <div class="row"><span class="l">Sub-agent share</span><span class="v">0.00</span></div>
+        <div class="row dim"><span class="l">Host spread</span><span class="v">0.00</span></div>
+        <div class="row neg"><span class="l">Issuing fee · SA4471-FEE-DOM</span><span class="v">−10.00</span></div>
+        <div class="row key neg"><span class="l">Net to sub-agent</span><span class="v">−10.00</span></div>
+      </div>
+      <div class="doc-ft">Carrier rule: AA-US-DOM-NIL v1 · nil asserted, not missing<br>Fee fires only on <code>upstream_commission: nil</code></div>
+    </div>
+  </div>
+
+  <p>The second ticket is the case that justifies the whole <code>nil</code>-versus-missing distinction. The fee is owed <em>because</em> the host earned nothing — so the fee rule must be able to read the outcome of the layer above it, and a ticket that merely failed to match any carrier rule must never trigger it.</p>
+</section>
+
+<section id="s7">
+  <p class="eyebrow">§7 — Lifecycle</p>
+  <h2>Document lifecycle</h2>
+  <p>The clean issue is the easy case. Manual reconciliation collapses on what happens afterwards. A ticket is therefore not a row — it is a <strong>lifecycle</strong>: one ticket number owning a chain of documents, against which commission entries are appended and never mutated.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Event</th><th>Commission effect</th><th>Engine behaviour</th></tr></thead>
+      <tbody>
+        <tr><td>Void</td><td>Never earned</td><td>Post a full reversing entry. The original entry stays visible in the ledger; the net is zero.</td></tr>
+        <tr><td>Full refund</td><td>Clawed back in full</td><td>Reverse at the original rate and rule version, not today's.</td></tr>
+        <tr><td>Partial refund</td><td>Pro-rata clawback</td><td>Reverse on the refunded portion of the <em>base</em>. The cancellation penalty is retained revenue and is normally non-commissionable.</td></tr>
+        <tr><td>Exchange / reissue</td><td>Net of what was already recognised</td><td>Compute commission on the new document's base, then subtract commission already recognised on the exchanged coupons. Never re-pay on carried-over base.</td></tr>
+        <tr><td>ADM</td><td>Carrier debit</td><td>Post a debit entry linked to the ticket and, where the sub-agent caused it, a matching pass-through per their agreement.</td></tr>
+        <tr><td>ACM</td><td>Carrier credit</td><td>Post a credit and re-evaluate any open variance on that ticket.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="k">Rule</span>
+    <p>Amounts are never updated in place. Every correction is a new, dated, reversing entry that references the entry it corrects. The current position is a sum over the ledger, so any figure the system has ever shown can be reproduced for any past date.</p>
+  </div>
+</section>
+
+<section id="s8">
+  <p class="eyebrow">§8 — Input</p>
+  <h2>Ingestion adapters</h2>
+  <p>One adapter interface, one output type: <code>(raw) =&gt; TicketDocument[]</code>. Adapters are independently testable against captured real samples and carry no knowledge of contracts or commission.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Source</th><th>Fidelity</th><th>Use</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>ARC IAR export</td><td>Highest</td><td>Weekly bulk reconciliation</td><td>Itemised taxes, tour code, reported commission. The reconciliation backbone.</td></tr>
+        <tr><td>GDS feed</td><td>High</td><td>Near-real-time</td><td>Sabre / Amadeus / Travelport. Per-coupon detail and fare calc string present.</td></tr>
+        <tr><td>Print-stream capture</td><td>High</td><td>Continuous, passive</td><td>Back-office interface records captured off the ticket/invoice print stream (Server&nbsp;Pro). Fixed-position parsing — <strong>needs a real sample capture to specify.</strong></td></tr>
+        <tr><td>Ticket PDF / e-mail</td><td>Medium</td><td>Single-ticket lookup</td><td>The sub-agent "what's my cut" flow. Layout varies by issuer; low-confidence fields are surfaced for confirmation, never guessed.</td></tr>
+        <tr><td>Spreadsheet / manual</td><td>Variable</td><td>Backfill &amp; edge cases</td><td>Column mapping saved per template. Also the migration path off today's manual sheet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The model is settlement-agnostic by construction. ARC is the v1 target; a BSP HOT-file adapter is another implementation of the same interface, and the only settlement-specific logic outside the adapters is the period calendar.</p>
+</section>
+
+<section id="s9">
+  <p class="eyebrow">§9 — Reconciliation</p>
+  <h2>Expected against actual</h2>
+  <p>Reconciliation is a set difference over a settlement period: every ticket the engine expected commission on, matched against what was actually received or claimed. Everything that does not match cleanly becomes a typed work item with a reason code, an owner and an age.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th class="m">Reason</th><th>Meaning</th><th>Typical resolution</th></tr></thead>
+      <tbody>
+        <tr><td class="m">UNDERPAID</td><td>Carrier paid less than the contract requires</td><td>Generate a claim with the trace attached</td></tr>
+        <tr><td class="m">BASIS_MISMATCH</td><td>Variance equals the rate applied to YQ</td><td>Carrier computed on a different basis — the highest-value pattern to detect automatically</td></tr>
+        <tr><td class="m">RATE_MISMATCH</td><td>Paid at a different percentage</td><td>Either a contract version we do not hold, or a genuine underpayment</td></tr>
+        <tr><td class="m">UNCLAIMED</td><td>Expected, never claimed, period closing</td><td>Escalate before the carrier's claim window expires</td></tr>
+        <tr><td class="m">CLAWBACK_DUE</td><td>Refunded or voided, commission still standing</td><td>Post reversal; recover from sub-agent if already paid out</td></tr>
+        <tr><td class="m">AMBIGUOUS</td><td>Two rules tied on specificity</td><td>Human decides; the decision amends the contract's priorities</td></tr>
+        <tr><td class="m">NO_RULE</td><td>No contract clause covers this ticket</td><td>Either a gap in our contract data or genuinely nil — must be asserted either way</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><code>BASIS_MISMATCH</code> deserves particular attention: when the variance on a ticket equals the contract rate applied to the YQ amount, the carrier and the agency disagree about the commissionable basis. Detected across a period rather than a ticket, that pattern is usually worth more than every other variance type combined.</p>
+</section>
+
+<section id="s10">
+  <p class="eyebrow">§10 — Storage</p>
+  <h2>Data model</h2>
+  <p>Postgres. Three groups of tables: what happened (documents), what we agreed (contracts), and what is owed (ledger). The first two are inputs; the third is derived, append-only, and reproducible from the first two by replaying the engine.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th class="m">Table</th><th>Holds</th><th>Mutability</th></tr></thead>
+      <tbody>
+        <tr><td class="m">tickets</td><td>Lifecycle head, keyed by ticket number</td><td>Status only</td></tr>
+        <tr><td class="m">documents</td><td>Each TKT / EXCH / RFND / VOID / ADM against a ticket</td><td>Immutable</td></tr>
+        <tr><td class="m">coupons</td><td>Per-segment detail, incl. prorated base</td><td>Immutable</td></tr>
+        <tr><td class="m">tax_items</td><td>One row per tax code per document</td><td>Immutable</td></tr>
+        <tr><td class="m">contracts</td><td>Carrier and sub-agent agreements, with the source PDF</td><td>Metadata only</td></tr>
+        <tr><td class="m">rules</td><td>Versioned, effective-dated clauses</td><td>New version, never edit</td></tr>
+        <tr><td class="m">calculations</td><td>One per (document, layer, engine version), with the trace as JSONB</td><td>Immutable</td></tr>
+        <tr><td class="m">ledger_entries</td><td>Signed amounts by party, referencing the entry they reverse</td><td><strong>Append-only</strong></td></tr>
+        <tr><td class="m">settlements</td><td>Period boundaries and what the carrier or ARC actually reported</td><td>Immutable once closed</td></tr>
+        <tr><td class="m">variances</td><td>Open work items with reason code, owner and age</td><td>Status and notes</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Money representation</h4>
+  <p>Every amount is a <code>bigint</code> of minor units plus an explicit currency code. No floating point appears anywhere in the money path. Where a ticket is sold in a second currency, the FX rate and its date are stored <em>on the entry</em>, so a restated rate never silently rewrites history.</p>
+</section>
+
+<section id="s11">
+  <p class="eyebrow">§11 — System</p>
+  <h2>Architecture</h2>
+  <p>A TypeScript monorepo. The engine is the asset; everything else is delivery. Keeping it pure and dependency-free is what makes the standalone product embeddable in other systems later without a rewrite.</p>
+
+  <div class="code">
+    <div class="cap">repository layout</div>
+<pre>packages/
+  engine/      <b>pure, zero-dependency, deterministic</b>
+               <i>no I/O, no clock, no randomness — same inputs, same outputs,</i>
+               <i>forever. This is the publishable artefact.</i>
+  schema/      <i>zod schemas + inferred types: Ticket, Rule, Calculation</i>
+  parsers/     <i>one adapter per source → TicketDocument[]</i>
+apps/
+  api/         <i>Fastify + Postgres. Thin. Owns persistence and auth,</i>
+               <i>never arithmetic.</i>
+  web/         <i>the existing Vite/React console</i>
+fixtures/
+  golden/      <i>real tickets + hand-verified expected outputs</i>
+  contracts/   <i>redacted contract excerpts + their extracted rules</i></pre>
+  </div>
+
+  <h3>Where AI is allowed, and where it is not</h3>
+  <p>AI reads a contract PDF and proposes structured rules, each annotated with the clause and page it came from and a confidence level. A human reviews and approves before a rule can ever fire; an unapproved rule is inert. AI also assists PDF ticket parsing, flagging low-confidence fields for confirmation.</p>
+  <p><strong>AI never performs arithmetic and never selects a rule at calculation time.</strong> The calculation path is deterministic code with golden tests. That boundary is what makes the output defensible.</p>
+</section>
+
+<section id="s12">
+  <p class="eyebrow">§12 — Assurance</p>
+  <h2>Correctness strategy</h2>
+  <p>"Solid" is not a quality of the code, it is a property that has to be continuously demonstrated. Four mechanisms:</p>
+
+  <h4>1 · Golden fixtures</h4>
+  <p>Real tickets paired with the amounts the manual team already computed. A contract does not go live until the engine reproduces every fixture under it exactly. This is also the migration proof — it demonstrates the system agrees with the humans before anyone is asked to trust it.</p>
+
+  <h4>2 · Property tests</h4>
+  <p>Invariants that must hold for every generated input, not just the examples:</p>
+  <ul>
+    <li>Sub-agent share plus host spread always equals the carrier commission, to the minor unit</li>
+    <li>Ledger entries for any ticket always sum to its current position</li>
+    <li>Void, then recompute, always nets to zero</li>
+    <li>Issue → exchange → refund never recognises more commission than a direct issue at the final fare</li>
+    <li>No commission is ever computed on a tax code not named in the rule's basis</li>
+  </ul>
+
+  <h4>3 · Determinism and replay</h4>
+  <p>The engine takes no clock and no randomness; effective dates come from the ticket. Every calculation is stamped with an engine version, so the full history can be replayed after a fix and the diff reviewed before anything is restated.</p>
+
+  <h4>4 · Explainability as a test surface</h4>
+  <p>Every result renders as the §6 waterfall with clause citations. If the explanation cannot be read and checked against the contract by the person who does this manually today, the calculation is not finished — regardless of whether the number is right.</p>
+</section>
+
+<section id="s13">
+  <p class="eyebrow">§13 — Delivery</p>
+  <h2>Build phases</h2>
+  <p>Ordered so that something is usable and verifiable early, and so the riskiest unknown — real data — is confronted before the volume features are built on top of it.</p>
+
+  <div class="phase">
+    <span class="pn">Phase 0</span>
+    <div>
+      <h3>This specification</h3>
+      <p>Agree the model, the rule shape and the open decisions in §14 before any code exists.</p>
+      <span class="out">Output — this document, reviewed</span>
+    </div>
+  </div>
+  <div class="phase">
+    <span class="pn">Phase 1</span>
+    <div>
+      <h3>Engine, schema and fixtures</h3>
+      <p>Canonical ticket model, rule evaluation, the two-layer waterfall, the trace. No persistence, no UI. Validated against your real tickets and their hand-computed answers.</p>
+      <span class="out">Output — <code>packages/engine</code> passing a golden suite</span>
+    </div>
+  </div>
+  <div class="phase">
+    <span class="pn">Phase 2</span>
+    <div>
+      <h3>Sub-agent calculator</h3>
+      <p>Upload a ticket, get the waterfall. The narrowest genuinely useful product, and the fastest way to prove the model against tickets in the wild.</p>
+      <span class="out">Output — working single-ticket tool</span>
+    </div>
+  </div>
+  <div class="phase">
+    <span class="pn">Phase 3</span>
+    <div>
+      <h3>Contract authoring</h3>
+      <p>Rule editor, versioning, effective dating, AI-assisted extraction with mandatory human approval, and a per-contract fixture suite.</p>
+      <span class="out">Output — contracts maintainable without a developer</span>
+    </div>
+  </div>
+  <div class="phase">
+    <span class="pn">Phase 4</span>
+    <div>
+      <h3>Bulk ingestion and reconciliation</h3>
+      <p>ARC and print-stream adapters, batch calculation over a settlement period, the variance queue. This is the phase that replaces the manual weekly process.</p>
+      <span class="out">Output — a week reconciled in minutes</span>
+    </div>
+  </div>
+  <div class="phase">
+    <span class="pn">Phase 5</span>
+    <div>
+      <h3>Lifecycle and statements</h3>
+      <p>Refunds, exchanges, ADMs, clawbacks. Sub-agent statements and payouts. PLB accrual and period-end settlement.</p>
+      <span class="out">Output — closed loop, ticket to payout</span>
+    </div>
+  </div>
+  <div class="phase">
+    <span class="pn">Phase 6</span>
+    <div>
+      <h3>Embedding</h3>
+      <p>Stable public API and the engine published as a library, for integration into the other programs you have in mind.</p>
+      <span class="out">Output — versioned API + package</span>
+    </div>
+  </div>
+</section>
+
+<section id="s14">
+  <p class="eyebrow">§14 — Decisions</p>
+  <h2>Open decisions</h2>
+  <p>These change the schema or the engine, so they are worth settling before Phase 1 rather than after.</p>
+
+  <ol class="q">
+    <li><b>Route scope on multi-segment tickets</b><span>Do market rules match on ticket-level origin and destination, or per coupon with the base fare prorated from the fare calc? This may legitimately differ per carrier — I need to know if any of your contracts are explicit about it.</span></li>
+    <li><b>How commission actually arrives</b><span>Is it netted out at ARC settlement when the agent reports it, or claimed from carriers by invoice after the fact? This decides what "actual" means in §9 and how a claim is generated.</span></li>
+    <li><b>Overrides and PLB</b><span>Front-end percentages only, or are there target-based overrides and back-end bonuses? PLB needs period accrual, which is a meaningful addition.</span></li>
+    <li><b>Currency</b><span>All USD, or are there tickets sold and settled in other currencies? Multi-currency is cheap to design in now and expensive to retrofit.</span></li>
+    <li><b>Sub-agent settlement cadence</b><span>Weekly alongside ARC, or monthly? And are fees netted against commission on one statement, or invoiced separately?</span></li>
+    <li><b>Scale</b><span>Tickets per week, number of carrier contracts, number of sub-agents. This decides whether Phase 4 is a batch job or a queue.</span></li>
+    <li><b>Print-stream sample</b><span>A capture from the Server Pro integration. The adapter is fixed-position parsing and cannot be specified from description alone.</span></li>
+  </ol>
+
+  <div class="note">
+    <span class="k">What unblocks Phase 1</span>
+    <p>One real carrier contract, one sub-agent agreement, and twenty to fifty tickets with the amounts your team computed by hand — including at least a few refunds and exchanges, and a few your team found genuinely hard. Those become the golden fixtures, and they are worth more to the build than any answer above.</p>
+  </div>
+</section>
+
+<footer>
+  <span>CE-001 · Rev 0.1</span>
+  <span>Host Agency Commission Engine</span>
+  <span>Draft for review</span>
+</footer>
+
+</main>
+</div>
+</div>

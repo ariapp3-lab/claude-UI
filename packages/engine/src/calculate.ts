@@ -1,0 +1,642 @@
+/**
+ * The calculation. Every dollar in the system originates here.
+ *
+ * Design rules this file obeys without exception:
+ *
+ *  - No floating point. Amounts are bigint minor units end to end.
+ *  - No clock, no randomness, no I/O. Same inputs, same outputs, forever.
+ *  - Nothing is inferred. A missing rule is NO_RULE, not zero. An unknown
+ *    airport is INCOMPLETE, not a guess. A tie is AMBIGUOUS, not a coin flip.
+ *  - The host spread is computed by *subtraction* from the carrier commission,
+ *    so `subAgentShare + hostSpread === carrierCommission` holds by
+ *    construction rather than by hoping two roundings agree.
+ */
+
+import {
+  type Money,
+  type RoundingMode,
+  add,
+  applyFraction,
+  applyRate,
+  allocate,
+  formatMoney,
+  isNegative,
+  isZero,
+  max as maxMoney,
+  min as minMoney,
+  negate,
+  parseMoney,
+  parseRate,
+  subtract,
+  sum,
+  zero,
+} from "./money.js";
+import { DEFAULT_GEO, type GeoContext } from "./geo.js";
+import { type MatchContext, selectRule } from "./match.js";
+import type {
+  Award,
+  BasisComponent,
+  BasisTrace,
+  ConditionTrace,
+  Coupon,
+  LayerResult,
+  Rule,
+  TicketDocument,
+  Waterfall,
+} from "./types.js";
+
+export const ENGINE_VERSION = "0.1.0";
+
+export interface CalculationOptions {
+  readonly geo?: GeoContext;
+  /** Rounding used where a rule does not state its own. */
+  readonly defaultRounding?: RoundingMode;
+}
+
+// ---------------------------------------------------------------------------
+// Basis
+// ---------------------------------------------------------------------------
+
+function componentCode(c: BasisComponent): string {
+  if (typeof c === "string") return c === "base_fare" ? "base_fare" : c.toUpperCase();
+  return c.tax.toUpperCase();
+}
+
+/**
+ * Resolve the commissionable basis, and record *everything on the ticket*
+ * with an included/excluded verdict — not just the included parts. Showing a
+ * reader that YQ 386.00 was seen and deliberately excluded is the difference
+ * between an answer and a claim.
+ */
+function resolveBasis(
+  ticket: TicketDocument,
+  components: readonly BasisComponent[],
+  baseOverride?: Money,
+): { basis: Money; trace: BasisTrace[] } {
+  const wanted = new Set(components.map(componentCode));
+  const trace: BasisTrace[] = [];
+  const parts: Money[] = [];
+
+  const base = baseOverride ?? ticket.baseFare;
+  const baseIncluded = wanted.has("base_fare");
+  trace.push({
+    component: "base_fare",
+    amount: base,
+    included: baseIncluded,
+    reason: baseIncluded ? undefined : "not named in the rule's basis",
+  });
+  if (baseIncluded) parts.push(base);
+
+  for (const tax of ticket.taxes) {
+    const code = tax.code.toUpperCase();
+    const included = wanted.has(code);
+    const carrierImposed = code === "YQ" || code === "YR";
+    trace.push({
+      component: code,
+      amount: tax.amount,
+      included,
+      reason: included
+        ? "named in the rule's basis"
+        : carrierImposed
+          ? "carrier-imposed surcharge, excluded by this contract"
+          : "government tax or airport charge",
+    });
+    if (included) parts.push(tax.amount);
+  }
+
+  return { basis: sum(parts, ticket.currency), trace };
+}
+
+// ---------------------------------------------------------------------------
+// Awards
+// ---------------------------------------------------------------------------
+
+interface AwardResult {
+  readonly commission: Money;
+  readonly accrual?: Money;
+  readonly basis?: Money;
+  readonly basisTrace?: BasisTrace[];
+  readonly notes: string[];
+  readonly nil: boolean;
+}
+
+function applyAward(
+  award: Award,
+  ticket: TicketDocument,
+  opts: Required<Pick<CalculationOptions, "defaultRounding">>,
+  upstream?: Money,
+  baseOverride?: Money,
+  couponCount = 1,
+): AwardResult {
+  const currency = ticket.currency;
+  const rounding = award.rounding?.mode ?? opts.defaultRounding;
+  const notes: string[] = [];
+
+  switch (award.kind) {
+    case "nil":
+      return {
+        commission: zero(currency),
+        notes: ["nil commission asserted by contract — not a missing rule"],
+        nil: true,
+      };
+
+    case "percent": {
+      const components = award.basis ?? ["base_fare"];
+      const { basis, trace } = resolveBasis(ticket, components, baseOverride);
+      let commission = applyRate(basis, award.rate ?? "0", rounding);
+
+      if (award.cap) {
+        const cap = parseMoney(award.cap, award.currency ?? currency);
+        const capped = minMoney(commission, cap);
+        if (capped.units !== commission.units) {
+          notes.push(`capped at ${formatMoney(cap)} ${cap.currency}`);
+          commission = capped;
+        }
+      }
+      if (award.floor) {
+        const floor = parseMoney(award.floor, award.currency ?? currency);
+        const floored = maxMoney(commission, floor);
+        if (floored.units !== commission.units) {
+          notes.push(`raised to floor ${formatMoney(floor)} ${floor.currency}`);
+          commission = floored;
+        }
+      }
+      return { commission, basis, basisTrace: trace, notes, nil: isZero(commission) };
+    }
+
+    case "flat": {
+      const per = award.per ?? "ticket";
+      const one = parseMoney(award.amount ?? "0", award.currency ?? currency);
+      const commission =
+        per === "coupon" ? applyFraction(one, BigInt(couponCount), 1n) : one;
+      if (per === "coupon") notes.push(`flat ${formatMoney(one)} × ${couponCount} coupons`);
+      return { commission, notes, nil: isZero(commission) };
+    }
+
+    case "plb": {
+      // Target-based override. It accrues per ticket but only becomes payable
+      // when the period target is assessed, so it must never be added to a
+      // per-ticket payable figure.
+      const components = award.basis ?? ["base_fare"];
+      const { basis, trace } = resolveBasis(ticket, components, baseOverride);
+      const accrual = applyRate(basis, award.rate ?? "0", rounding);
+      notes.push(
+        "PLB accrual — not payable on this ticket; settles against the period target",
+      );
+      return {
+        commission: zero(currency),
+        accrual,
+        basis,
+        basisTrace: trace,
+        notes,
+        nil: true,
+      };
+    }
+
+    case "share_of_upstream": {
+      const up = upstream ?? zero(currency);
+      if (isZero(up)) {
+        return {
+          commission: zero(currency),
+          notes: [
+            award.whenUpstreamNil === "fee_only"
+              ? "carrier layer awarded nothing — fees only"
+              : "carrier layer awarded nothing — no share to pass through",
+          ],
+          nil: true,
+        };
+      }
+      const mode = award.mode ?? "points";
+      if (mode === "absolute") {
+        const commission = parseMoney(award.amount ?? "0", award.currency ?? currency);
+        notes.push("absolute override — independent of the carrier rate");
+        return { commission, notes, nil: isZero(commission) };
+      }
+      if (mode === "fraction") {
+        const n = parseRate(award.numerator ?? "0");
+        const d = parseRate(award.denominator ?? "1");
+        const commission = applyFraction(up, n, d, rounding);
+        notes.push(`${award.numerator}/${award.denominator} of carrier commission`);
+        return { commission, notes, nil: isZero(commission) };
+      }
+      // points: the sub-agent's points as a fraction of the carrier's points.
+      // Derived from the rule that actually fired upstream, so a carrier rate
+      // change flows through with no edit here.
+      const subPoints = parseRate(award.points ?? "0");
+      const carrierPoints = parseRate(award.denominator ?? "0");
+      if (carrierPoints === 0n) {
+        return {
+          commission: zero(currency),
+          notes: ["carrier rate unknown — cannot resolve a points share"],
+          nil: true,
+        };
+      }
+      let commission = applyFraction(up, subPoints, carrierPoints, rounding);
+      notes.push(`${award.points} of ${award.denominator} points of carrier commission`);
+      if (award.capAtUpstream === true && commission.units > up.units) {
+        notes.push(
+          `capped at the carrier commission of ${formatMoney(up)} — the clause ` +
+            "awards more points than the carrier granted",
+        );
+        commission = up;
+      }
+      return { commission, notes, nil: isZero(commission) };
+    }
+
+    case "fee": {
+      const per = award.per ?? "ticket";
+      const one = parseMoney(award.amount ?? "0", award.currency ?? currency);
+      const gross = per === "coupon" ? applyFraction(one, BigInt(couponCount), 1n) : one;
+      // Signed from the sub-agent's point of view: a fee they pay is negative.
+      const signed = award.direction === "credit_subagent" ? gross : negate(gross);
+      return { commission: signed, notes, nil: isZero(signed) };
+    }
+
+    default: {
+      const never: never = award.kind;
+      throw new Error(`unsupported award kind: ${String(never)}`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Prorating
+// ---------------------------------------------------------------------------
+
+/**
+ * Split the base fare across coupons for coupon-scoped rules.
+ *
+ * Weights come from the fare calculation string where the adapter could lift
+ * them; otherwise every coupon is weighted equally, which is stated in the
+ * trace rather than hidden. `allocate` guarantees the parts sum to the whole,
+ * so a per-coupon rule can never invent or lose a minor unit.
+ */
+export function prorateBase(ticket: TicketDocument): {
+  parts: Money[];
+  method: "fare_calc" | "equal";
+} {
+  const weights = ticket.coupons.map((c) => c.fareCalcWeight ?? null);
+  const haveAll = weights.every((w) => w !== null && w > 0n);
+  const method = haveAll ? "fare_calc" : "equal";
+  const w = haveAll ? (weights as bigint[]) : ticket.coupons.map(() => 1n);
+  return { parts: allocate(ticket.baseFare, w), method };
+}
+
+// ---------------------------------------------------------------------------
+// Layers
+// ---------------------------------------------------------------------------
+
+function emptyLayer(
+  layer: LayerResult["layer"],
+  currency: string,
+  outcome: LayerResult["outcome"],
+  notes: string[],
+  rejected: LayerResult["rejected"],
+): LayerResult {
+  return { layer, outcome, commission: zero(currency), notes, rejected };
+}
+
+/**
+ * Carrier → host agency.
+ *
+ * Ticket scope is evaluated first because that is what nearly every contract
+ * means. Only when the winning rule declares `scope: "coupon"` is the ticket
+ * re-evaluated coupon by coupon against a prorated base.
+ */
+export function calculateCarrierLayer(
+  ticket: TicketDocument,
+  rules: readonly Rule[],
+  opts: CalculationOptions = {},
+): LayerResult & { rate?: string } {
+  const geo = opts.geo ?? DEFAULT_GEO;
+  const defaultRounding = opts.defaultRounding ?? "half_up";
+  const ctx: MatchContext = { geo };
+  const pool = rules.filter((r) => r.layer === "carrier_to_host");
+
+  const selection = selectRule(pool, ticket, ctx);
+
+  if (selection.kind === "none") {
+    return emptyLayer(
+      "carrier_to_host",
+      ticket.currency,
+      "NO_RULE",
+      [
+        `no carrier clause covers this ticket (${pool.length} considered). ` +
+          "This is not the same as nil commission and must be resolved, not assumed.",
+      ],
+      selection.rejected,
+    );
+  }
+  if (selection.kind === "ambiguous") {
+    return {
+      ...emptyLayer(
+        "carrier_to_host",
+        ticket.currency,
+        "AMBIGUOUS",
+        [
+          "two clauses match at equal priority and specificity: " +
+            selection.candidates.map((c) => `${c.rule.id} v${c.rule.version}`).join(" / "),
+        ],
+        selection.rejected,
+      ),
+      conditions: selection.candidates[0].traces,
+    };
+  }
+  if (selection.kind === "incomplete") {
+    return {
+      ...emptyLayer(
+        "carrier_to_host",
+        ticket.currency,
+        "INCOMPLETE",
+        ["an airport on this ticket is not in the geography table, so its market cannot be resolved"],
+        selection.rejected,
+      ),
+      ruleId: selection.evaluation.rule.id,
+      ruleVersion: selection.evaluation.rule.version,
+      conditions: selection.evaluation.traces,
+    };
+  }
+
+  const winner = selection.evaluation.rule;
+  const notes: string[] = [];
+
+  if ((winner.scope ?? "ticket") === "coupon") {
+    // Per-coupon evaluation against a prorated base.
+    const { parts, method } = prorateBase(ticket);
+    notes.push(
+      method === "equal"
+        ? "coupon-scoped rule; base fare prorated equally (no fare-calc weights available)"
+        : "coupon-scoped rule; base fare prorated from the fare calculation",
+    );
+    let total = zero(ticket.currency);
+    let basisTotal = zero(ticket.currency);
+    const conditions: ConditionTrace[] = [];
+    const trace: BasisTrace[] = [];
+
+    ticket.coupons.forEach((coupon: Coupon, i: number) => {
+      const sel = selectRule(pool, ticket, ctx, coupon);
+      if (sel.kind !== "matched") {
+        notes.push(`coupon ${coupon.n} (${coupon.origin}–${coupon.destination}): no clause`);
+        return;
+      }
+      const r = applyAward(sel.evaluation.rule.award, ticket, { defaultRounding }, undefined, parts[i], 1);
+      total = add(total, r.commission);
+      if (r.basis) basisTotal = add(basisTotal, r.basis);
+      conditions.push(...sel.evaluation.traces);
+      if (r.basisTrace) {
+        trace.push({
+          component: `coupon ${coupon.n} ${coupon.origin}–${coupon.destination}`,
+          amount: parts[i],
+          included: true,
+          reason: `${sel.evaluation.rule.id} → ${formatMoney(r.commission)}`,
+        });
+      }
+      notes.push(...r.notes.map((n) => `coupon ${coupon.n}: ${n}`));
+    });
+
+    return {
+      layer: "carrier_to_host",
+      outcome: isZero(total) ? "NIL" : "CALCULATED",
+      ruleId: winner.id,
+      ruleVersion: winner.version,
+      clause: winner.source?.clause,
+      basis: basisTotal,
+      basisTrace: trace,
+      commission: total,
+      conditions,
+      rejected: selection.rejected,
+      notes,
+      rate: winner.award.rate,
+    };
+  }
+
+  const result = applyAward(
+    winner.award,
+    ticket,
+    { defaultRounding },
+    undefined,
+    undefined,
+    ticket.coupons.length,
+  );
+
+  return {
+    layer: "carrier_to_host",
+    outcome:
+      winner.award.kind === "nil" || (result.nil && !result.accrual) ? "NIL" : "CALCULATED",
+    ruleId: winner.id,
+    ruleVersion: winner.version,
+    clause: winner.source?.clause,
+    basis: result.basis,
+    basisTrace: result.basisTrace,
+    commission: result.commission,
+    accrual: result.accrual,
+    conditions: selection.evaluation.traces,
+    rejected: selection.rejected,
+    notes: [...notes, ...result.notes],
+    rate: winner.award.rate,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Waterfall
+// ---------------------------------------------------------------------------
+
+export interface WaterfallInput {
+  readonly ticket: TicketDocument;
+  readonly rules: readonly Rule[];
+  readonly subAgentId?: string | null;
+}
+
+/**
+ * The full two-layer calculation: carrier commission, the sub-agent's share of
+ * it, the fees the host charges, and what each party is left holding.
+ */
+export function calculate(
+  input: WaterfallInput,
+  opts: CalculationOptions = {},
+): Waterfall {
+  const { ticket, rules } = input;
+  const currency = ticket.currency;
+  const geo = opts.geo ?? DEFAULT_GEO;
+  const defaultRounding = opts.defaultRounding ?? "half_up";
+  const subAgentId = input.subAgentId ?? ticket.subAgentId ?? null;
+
+  const carrier = calculateCarrierLayer(ticket, rules, { geo, defaultRounding });
+
+  const flags: { code: Waterfall["flags"][number]["code"]; message: string }[] = [];
+  if (carrier.outcome !== "CALCULATED" && carrier.outcome !== "NIL") {
+    flags.push({
+      code: carrier.outcome,
+      message: carrier.notes?.[0] ?? "carrier layer could not be calculated",
+    });
+  }
+  if (carrier.accrual && !isZero(carrier.accrual)) {
+    flags.push({
+      code: "REVIEW",
+      message: `PLB accrual of ${formatMoney(carrier.accrual)} ${currency} pending period settlement`,
+    });
+  }
+
+  if (!subAgentId) {
+    return {
+      ticketNumber: ticket.ticketNumber,
+      currency,
+      engineVersion: ENGINE_VERSION,
+      ticketTotal: ticket.total,
+      baseFare: ticket.baseFare,
+      carrier,
+      fees: [],
+      hostSpread: carrier.commission,
+      netToSubAgent: zero(currency),
+      flags,
+    };
+  }
+
+  // A fee gated on `upstreamCommission: "nil"` may only fire where the host has
+  // *established* that it earns nothing — a contract clause that asserts nil, or
+  // one that computed to zero. A carrier layer that found no rule at all has
+  // established nothing, and billing a sub-agent off that is inventing a charge.
+  const upstreamEstablished =
+    carrier.outcome === "NIL" || carrier.outcome === "CALCULATED";
+  const upstreamNil = upstreamEstablished && isZero(carrier.commission);
+  const ctx: MatchContext = { geo, upstreamCommissionIsNil: upstreamNil };
+  const pool = rules.filter(
+    (r) => r.layer === "host_to_subagent" && r.subAgentId === subAgentId,
+  );
+
+  const shareRules = pool.filter((r) => r.award.kind !== "fee");
+  const feeRules = pool.filter((r) => r.award.kind === "fee");
+
+  // --- the sub-agent's share -------------------------------------------------
+  let subAgent: LayerResult;
+  const shareSelection = selectRule(shareRules, ticket, ctx);
+
+  if (shareSelection.kind === "matched") {
+    const rule = shareSelection.evaluation.rule;
+    // Points shares are resolved against the carrier rate that actually fired,
+    // so "7 of 8" becomes "7 of 6" by itself when the carrier contract changes.
+    const award: Award =
+      rule.award.kind === "share_of_upstream" && (rule.award.mode ?? "points") === "points"
+        ? { ...rule.award, denominator: rule.award.denominator ?? carrier.rate ?? "0" }
+        : rule.award;
+
+    const r = applyAward(
+      award,
+      ticket,
+      { defaultRounding },
+      carrier.commission,
+      undefined,
+      ticket.coupons.length,
+    );
+    subAgent = {
+      layer: "host_to_subagent",
+      outcome: r.nil ? "NIL" : "CALCULATED",
+      ruleId: rule.id,
+      ruleVersion: rule.version,
+      clause: rule.source?.clause,
+      commission: r.commission,
+      conditions: shareSelection.evaluation.traces,
+      rejected: shareSelection.rejected,
+      notes: r.notes,
+    };
+  } else if (shareSelection.kind === "none") {
+    subAgent = emptyLayer(
+      "host_to_subagent",
+      currency,
+      upstreamNil ? "NIL" : "NO_RULE",
+      upstreamNil
+        ? ["carrier layer awarded nothing, so there is no share to divide"]
+        : !upstreamEstablished
+          ? ["carrier layer is unresolved, so no share can be computed"]
+          : [`no revenue-share clause found for sub-agent ${subAgentId}`],
+      shareSelection.rejected,
+    );
+    if (!upstreamNil && upstreamEstablished) {
+      flags.push({
+        code: "NO_RULE",
+        message: `carrier commission of ${formatMoney(carrier.commission)} ${currency} has no sub-agent share clause`,
+      });
+    }
+  } else if (shareSelection.kind === "ambiguous") {
+    subAgent = emptyLayer(
+      "host_to_subagent",
+      currency,
+      "AMBIGUOUS",
+      [
+        "two sub-agent clauses match equally: " +
+          shareSelection.candidates.map((c) => c.rule.id).join(" / "),
+      ],
+      shareSelection.rejected,
+    );
+    flags.push({ code: "AMBIGUOUS", message: subAgent.notes![0] });
+  } else {
+    subAgent = emptyLayer(
+      "host_to_subagent",
+      currency,
+      "INCOMPLETE",
+      ["sub-agent clause needs geography this ticket could not resolve"],
+      shareSelection.rejected,
+    );
+    flags.push({ code: "INCOMPLETE", message: subAgent.notes![0] });
+  }
+
+  // --- fees ------------------------------------------------------------------
+  // Every matching fee clause applies; fees are cumulative, not exclusive.
+  const fees: { ruleId: string; clause?: string; label: string; amount: Money }[] = [];
+  for (const rule of feeRules) {
+    const evaluation = selectRule([rule], ticket, ctx);
+    if (evaluation.kind !== "matched") continue;
+    const r = applyAward(
+      rule.award,
+      ticket,
+      { defaultRounding },
+      carrier.commission,
+      undefined,
+      ticket.coupons.length,
+    );
+    if (isZero(r.commission)) continue;
+    fees.push({
+      ruleId: rule.id,
+      clause: rule.source?.clause,
+      label:
+        rule.award.direction === "credit_subagent"
+          ? "credit to sub-agent"
+          : "fee charged to sub-agent",
+      amount: r.commission,
+    });
+  }
+
+  // Subtraction, not a second rate calculation: this is what makes
+  // share + spread === carrier commission true to the minor unit, always.
+  const hostSpread = subtract(carrier.commission, subAgent.commission);
+  if (isNegative(hostSpread)) {
+    // The sub-agent agreement promises more than the carrier contract delivers.
+    // That is a real conflict between two signed documents, not an arithmetic
+    // problem, so the engine reports it instead of quietly resolving it.
+    flags.push({
+      code: "REVIEW",
+      message:
+        `sub-agent share of ${formatMoney(subAgent.commission)} ${currency} exceeds the ` +
+        `carrier commission of ${formatMoney(carrier.commission)} ${currency} — the host ` +
+        `pays ${formatMoney(negate(hostSpread))} out of pocket`,
+    });
+  }
+  const netToSubAgent = add(
+    subAgent.commission,
+    sum(fees.map((f) => f.amount), currency),
+  );
+
+  return {
+    ticketNumber: ticket.ticketNumber,
+    currency,
+    engineVersion: ENGINE_VERSION,
+    ticketTotal: ticket.total,
+    baseFare: ticket.baseFare,
+    carrier,
+    subAgent,
+    fees,
+    hostSpread,
+    netToSubAgent,
+    flags,
+  };
+}
