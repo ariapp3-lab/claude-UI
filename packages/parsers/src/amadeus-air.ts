@@ -83,7 +83,17 @@ function parseYYMMDD(v: string): string | null {
   return m ? `20${m[1]}-${m[2]}-${m[3]}` : null;
 }
 
-/** "31AUG" plus a reference date → ISO, rolling forward across a year end. */
+/**
+ * "31AUG" plus a reference date → ISO.
+ *
+ * A day-month with no year is resolved against the issue date and rolls into
+ * the next year when it falls before it — a ticket sold in December for travel
+ * in January. The tolerance matters: a departure a few days *before* the issue
+ * date is a data oddity (a late-reported ticketing, a reissue mid-trip), and
+ * pushing it a full year into the future is far worse than leaving it be.
+ */
+const BACKDATE_TOLERANCE_DAYS = 14;
+
 function parseDDMMM(v: string, referenceISO: string): string | null {
   const m = /^(\d{2})([A-Z]{3})$/.exec(v.trim().toUpperCase());
   if (!m) return null;
@@ -91,7 +101,11 @@ function parseDDMMM(v: string, referenceISO: string): string | null {
   if (!mm) return null;
   const year = Number(referenceISO.slice(0, 4));
   const candidate = `${year}-${mm}-${m[1]}`;
-  return candidate < referenceISO ? `${year + 1}-${mm}-${m[1]}` : candidate;
+  if (candidate >= referenceISO) return candidate;
+
+  const gapDays =
+    (Date.parse(referenceISO) - Date.parse(candidate)) / 86_400_000;
+  return gapDays <= BACKDATE_TOLERANCE_DAYS ? candidate : `${year + 1}-${mm}-${m[1]}`;
 }
 
 /** " USD23.40    US AP" → { code: "US", amount } */
