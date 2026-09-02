@@ -207,6 +207,39 @@ function applyAward(
         };
       }
       const mode = award.mode ?? "points";
+
+      if (mode === "residual") {
+        // "I keep one point." Expressed this way the split cannot promise more
+        // than the carrier granted: when the carrier drops from 8 to 6, the
+        // sub-agent moves from 7 to 5 with no edit to either agreement.
+        const carrierPts = parseRate(award.denominator ?? "0");
+        const hostPts = parseRate(award.hostRetainsPoints ?? "0");
+        if (carrierPts === 0n) {
+          return {
+            commission: zero(currency),
+            notes: ["carrier rate unknown — cannot resolve a residual share"],
+            nil: true,
+          };
+        }
+        if (hostPts >= carrierPts) {
+          return {
+            commission: zero(currency),
+            notes: [
+              `host retains ${award.hostRetainsPoints} points but the carrier ` +
+                `granted only ${award.denominator} — nothing remains for the sub-agent`,
+            ],
+            nil: true,
+          };
+        }
+        const subPts = carrierPts - hostPts;
+        const commission = applyFraction(up, subPts, carrierPts, rounding);
+        notes.push(
+          `host retains ${award.hostRetainsPoints} of ${award.denominator} points; ` +
+            `sub-agent takes the residual`,
+        );
+        return { commission, notes, nil: isZero(commission) };
+      }
+
       if (mode === "absolute") {
         const commission = parseMoney(award.amount ?? "0", award.currency ?? currency);
         notes.push("absolute override — independent of the carrier rate");
@@ -245,8 +278,44 @@ function applyAward(
 
     case "fee": {
       const per = award.per ?? "ticket";
-      const one = parseMoney(award.amount ?? "0", award.currency ?? currency);
-      const gross = per === "coupon" ? applyFraction(one, BigInt(couponCount), 1n) : one;
+      let gross: Money;
+
+      if (award.rate !== undefined) {
+        // A percentage fee — a merchant-account charge on the ticket total, or
+        // a handling charge on the commission. Taken on the *absolute* value so
+        // that a fee on a refund is still a charge, not a rebate.
+        const basisOf = award.basisOf ?? "ticket_total";
+        const source =
+          basisOf === "base_fare"
+            ? ticket.baseFare
+            : basisOf === "commission"
+              ? (upstream ?? zero(currency))
+              : ticket.total;
+        const magnitude: Money = {
+          units: source.units < 0n ? -source.units : source.units,
+          currency: source.currency,
+        };
+        gross = applyRate(magnitude, award.rate, rounding);
+        notes.push(`${award.rate}% of ${basisOf.replace("_", " ")} ${formatMoney(magnitude)}`);
+        if (award.minimum) {
+          const floor = parseMoney(award.minimum, award.currency ?? currency);
+          if (gross.units < floor.units) {
+            notes.push(`raised to the ${formatMoney(floor)} minimum`);
+            gross = floor;
+          }
+        }
+        if (award.cap) {
+          const cap = parseMoney(award.cap, award.currency ?? currency);
+          if (gross.units > cap.units) {
+            notes.push(`capped at ${formatMoney(cap)}`);
+            gross = cap;
+          }
+        }
+      } else {
+        const one = parseMoney(award.amount ?? "0", award.currency ?? currency);
+        gross = per === "coupon" ? applyFraction(one, BigInt(couponCount), 1n) : one;
+      }
+
       // Signed from the sub-agent's point of view: a fee they pay is negative.
       const signed = award.direction === "credit_subagent" ? gross : negate(gross);
       return { commission: signed, notes, nil: isZero(signed) };
@@ -441,6 +510,25 @@ export function calculateCarrierLayer(
 // Waterfall
 // ---------------------------------------------------------------------------
 
+/**
+ * A fee line should read like the invoice line it becomes, not like a rule id.
+ * Falls back to the document type the clause is gated on, which is how
+ * transaction fees (exchange, refund, void) name themselves.
+ */
+function feeLabel(rule: Rule): string {
+  if (rule.award.direction === "credit_subagent") return "credit to sub-agent";
+  const dt = rule.match.documentType;
+  const codes =
+    dt && typeof dt === "object" && dt.in ? dt.in.map((c) => c.toUpperCase()) : [];
+  if (codes.includes("EXCH")) return "exchange fee";
+  if (codes.includes("RFND")) return "refund fee";
+  if (codes.includes("VOID")) return "void fee";
+  if (codes.includes("ADM")) return "ADM handling fee";
+  if (codes.includes("EMD")) return "EMD fee";
+  if (rule.award.basisOf === "ticket_total" && rule.award.rate) return "merchant fee";
+  return "fee charged to sub-agent";
+}
+
 export interface WaterfallInput {
   readonly ticket: TicketDocument;
   readonly rules: readonly Rule[];
@@ -515,10 +603,12 @@ export function calculate(
     const rule = shareSelection.evaluation.rule;
     // Points shares are resolved against the carrier rate that actually fired,
     // so "7 of 8" becomes "7 of 6" by itself when the carrier contract changes.
-    const award: Award =
-      rule.award.kind === "share_of_upstream" && (rule.award.mode ?? "points") === "points"
-        ? { ...rule.award, denominator: rule.award.denominator ?? carrier.rate ?? "0" }
-        : rule.award;
+    const needsCarrierRate =
+      rule.award.kind === "share_of_upstream" &&
+      ["points", "residual"].includes(rule.award.mode ?? "points");
+    const award: Award = needsCarrierRate
+      ? { ...rule.award, denominator: rule.award.denominator ?? carrier.rate ?? "0" }
+      : rule.award;
 
     const r = applyAward(
       award,
@@ -598,10 +688,7 @@ export function calculate(
     fees.push({
       ruleId: rule.id,
       clause: rule.source?.clause,
-      label:
-        rule.award.direction === "credit_subagent"
-          ? "credit to sub-agent"
-          : "fee charged to sub-agent",
+      label: feeLabel(rule),
       amount: r.commission,
     });
   }

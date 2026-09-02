@@ -206,3 +206,98 @@ export const TICKET_LY_NET_FARE: TicketDocument = {
   tourCode: "IT6LY12",
   fareType: "private",
 };
+
+// ---------------------------------------------------------------------------
+// A realistic sub-agent fee schedule
+//
+// The revenue share is only half of a sub-agent agreement. The other half is
+// the schedule of charges the host levies on transactions, which is where a
+// sub-agent's margin quietly disappears. These are modelled as ordinary rules
+// gated on document type, so an exchange is charged an exchange fee by the same
+// machinery that awards commission.
+// ---------------------------------------------------------------------------
+
+/** "I keep one point" — the residual form, which cannot promise more than earned. */
+export const SA4471_LY_RESIDUAL: Rule = {
+  ...SA4471_LY_SHARE,
+  id: "SA4471-LY-RESIDUAL",
+  award: {
+    kind: "share_of_upstream",
+    mode: "residual",
+    hostRetainsPoints: "1.00",
+    whenUpstreamNil: "no_share",
+  },
+};
+
+export const SA4471_EXCHANGE_FEE: Rule = {
+  id: "SA4471-FEE-EXCH",
+  layer: "host_to_subagent",
+  contractId: "ct_sa4471",
+  version: 1,
+  priority: 800,
+  subAgentId: "sa_4471",
+  approved: true,
+  match: { documentType: { in: ["EXCH"] } },
+  award: { kind: "fee", amount: "25.00", currency: "USD", per: "ticket" },
+  source: { document: "SA4471-agreement.pdf", clause: "Sch. B ¶2" },
+};
+
+export const SA4471_REFUND_FEE: Rule = {
+  ...SA4471_EXCHANGE_FEE,
+  id: "SA4471-FEE-RFND",
+  match: { documentType: { in: ["RFND"] } },
+  award: { kind: "fee", amount: "35.00", currency: "USD", per: "ticket" },
+  source: { document: "SA4471-agreement.pdf", clause: "Sch. B ¶3" },
+};
+
+export const SA4471_ADM_FEE: Rule = {
+  ...SA4471_EXCHANGE_FEE,
+  id: "SA4471-FEE-ADM",
+  match: { documentType: { in: ["ADM"] } },
+  award: { kind: "fee", amount: "15.00", currency: "USD", per: "ticket" },
+  source: { document: "SA4471-agreement.pdf", clause: "Sch. B ¶6" },
+};
+
+/** Merchant-account charge: a percentage of the whole ticket, taxes included. */
+export const SA4471_MERCHANT_FEE: Rule = {
+  id: "SA4471-FEE-MERCHANT",
+  layer: "host_to_subagent",
+  contractId: "ct_sa4471",
+  version: 1,
+  priority: 300,
+  subAgentId: "sa_4471",
+  approved: true,
+  match: {},
+  award: {
+    kind: "fee",
+    rate: "2.50",
+    basisOf: "ticket_total",
+    currency: "USD",
+    minimum: "5.00",
+  },
+  source: { document: "SA4471-agreement.pdf", clause: "Sch. B ¶1" },
+};
+
+export const SA4471_FEE_SCHEDULE: Rule[] = [
+  SA4471_EXCHANGE_FEE,
+  SA4471_REFUND_FEE,
+  SA4471_ADM_FEE,
+  SA4471_MERCHANT_FEE,
+];
+
+/** An exchange of the business ticket, collecting a fare difference. */
+export const TICKET_LY_EXCHANGE: TicketDocument = {
+  ...TICKET_LY_BUSINESS,
+  ticketNumber: "114-2405550001",
+  documentType: "EXCH",
+  inRespectOf: "114-2401234567",
+  baseFare: usd("2480.00"),
+  taxes: [
+    { code: "YQ", amount: usd("386.00") },
+    { code: "US", amount: usd("45.80") },
+    { code: "AY", amount: usd("11.20") },
+    { code: "XF", amount: usd("4.50") },
+    { code: "IL", amount: usd("296.80") },
+  ],
+  total: usd("3224.30"),
+};

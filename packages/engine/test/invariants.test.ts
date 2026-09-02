@@ -8,7 +8,8 @@
 import { describe, expect, it } from "vitest";
 import { calculate } from "../src/calculate.js";
 import { add, formatMoney, money, parseMoney, sum, zero } from "../src/money.js";
-import type { Money, Rule, TicketDocument } from "../src/types.js";
+import type { Money } from "../src/money.js";
+import type { Rule, TicketDocument } from "../src/types.js";
 import { LY_PREMIUM, SA4471_LY_SHARE } from "./fixtures.js";
 
 /** xorshift32 — small, deterministic, adequate for shaping test inputs. */

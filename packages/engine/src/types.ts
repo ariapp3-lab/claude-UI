@@ -177,11 +177,31 @@ export interface Award {
   readonly per?: "ticket" | "coupon" | "passenger";
   /** fee — which way the money moves. */
   readonly direction?: "debit_subagent" | "credit_subagent";
+  /**
+   * fee — what a percentage fee is taken on. Merchant-account fees are a
+   * percentage of the ticket total; a handling fee may be a percentage of the
+   * commission. Set `rate` instead of `amount` to use these.
+   */
+  readonly basisOf?: "ticket_total" | "base_fare" | "commission";
+  /** fee — a percentage fee may still be bounded. */
+  readonly minimum?: string;
 
-  /** share_of_upstream */
-  readonly mode?: "points" | "fraction" | "absolute";
+  /**
+   * share_of_upstream — how the split is expressed. These are NOT equivalent
+   * once the carrier rate moves, and real agreements use both:
+   *
+   *   points    the sub-agent gets N points ("you get 7"). If the carrier
+   *             later pays 6, the agreement promises more than the host earns.
+   *   residual  the host keeps N points and the sub-agent gets the rest
+   *             ("I keep 1"). Self-correcting: at 6% the sub-agent gets 5.
+   *   fraction  a ratio of whatever the host earned.
+   *   absolute  a flat rate independent of the carrier contract.
+   */
+  readonly mode?: "points" | "residual" | "fraction" | "absolute";
   /** points: the sub-agent's points, e.g. "7.00" of the carrier's 8. */
   readonly points?: string;
+  /** residual: the points the HOST retains; the sub-agent takes the remainder. */
+  readonly hostRetainsPoints?: string;
   /** fraction: numerator/denominator of upstream commission. */
   readonly numerator?: string;
   readonly denominator?: string;

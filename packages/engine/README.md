@@ -59,6 +59,39 @@ The `×` column is the point of the whole exercise: it shows that YQ 386.00 was
 seen and deliberately excluded, and cites the clause that excluded it. Had YQ
 been commissionable, the answer would have been 202.08 rather than 171.20.
 
+## The sub-agent side
+
+A sub-agent's economics are the revenue share *minus* the host's fee schedule.
+Both are modelled as ordinary rules, so an exchange is charged an exchange fee
+by the same machinery that awards commission.
+
+**How the split is worded matters.** These are not the same agreement:
+
+| Mode | Wording | At carrier 8% | At carrier 6% |
+| --- | --- | --- | --- |
+| `points` | "you get 7" | 149.80 | **149.80** — more than the host earned; flagged |
+| `residual` | "I keep 1" | 149.80 | 107.00 — host still keeps exactly one point |
+
+`residual` is self-correcting and cannot promise more than the carrier granted.
+`points` is what most agreements literally say, so the engine computes it as
+written and flags the conflict rather than choosing a winner.
+
+**Fees** are gated on document type, so they fire on the transaction they
+belong to:
+
+```ts
+{ match: { documentType: { in: ["EXCH"] } },
+  award: { kind: "fee", amount: "25.00", currency: "USD" } }
+
+{ match: {},                                    // every transaction
+  award: { kind: "fee", rate: "2.50",           // merchant account charge
+           basisOf: "ticket_total", minimum: "5.00" } }
+```
+
+Fees stack — every matching clause applies, they are not exclusive. Percentage
+fees are taken on the magnitude, so a refund still costs the sub-agent its
+processing charge rather than handing one back.
+
 ## Layout
 
 | File | Responsibility |
