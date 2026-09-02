@@ -25,19 +25,19 @@ const LIVE = LY_MAINST_2026.map((x) => ({ ...x, approved: true }));
 describe("the document knows it is a reissue", () => {
   it("reads EXCH from the transaction element, not from the ticket number", () => {
     expect(r.documentType).toBe("EXCH");
-    expect(r.ticket.ticketNumber).toBe("114-7508318625");
-    expect(r.ticket.issueDate).toBe("2026-09-02");
+    expect(r.tickets[0].ticketNumber).toBe("114-7508318625");
+    expect(r.tickets[0].issueDate).toBe("2026-09-02");
   });
 
   it("names the ticket it replaces", () => {
-    expect(r.ticket.exchange!.originalTicket).toBe("114-7507683087");
-    expect(r.ticket.inRespectOf).toBe("114-7507683087");
+    expect(r.tickets[0].exchange!.originalTicket).toBe("114-7507683087");
+    expect(r.tickets[0].inRespectOf).toBe("114-7507683087");
   });
 });
 
 describe("the FO element carries what netting needs", () => {
   it("reads the original fare, tax and commission off the reissue", () => {
-    const x = r.ticket.exchange!;
+    const x = r.tickets[0].exchange!;
     expect(f(x.originalBase)).toBe("2022.00");
     expect(f(x.originalTax!)).toBe("117.00");
     // Nothing was recognised on the original, so nothing has to be reversed.
@@ -45,31 +45,31 @@ describe("the FO element carries what netting needs", () => {
   });
 
   it("reads the additional collection and the airline change fee", () => {
-    const x = r.ticket.exchange!;
+    const x = r.tickets[0].exchange!;
     expect(f(x.additionalCollection!)).toBe("1685.00");
     expect(f(x.changeFee!)).toBe("170.00");
   });
 
   it("reconciles: original fare plus the added collection is the new fare", () => {
-    const x = r.ticket.exchange!;
+    const x = r.tickets[0].exchange!;
     expect(x.originalBase.units + x.additionalCollection!.units).toBe(
-      r.ticket.baseFare.units,
+      r.tickets[0].baseFare.units,
     );
-    expect(f(r.ticket.baseFare)).toBe("3707.00"); // 2022.00 + 1685.00
+    expect(f(r.tickets[0].baseFare)).toBe("3707.00"); // 2022.00 + 1685.00
   });
 
   it("keeps the change fee out of the fare", () => {
     // 170.00 is a carrier charge collected alongside the ticket. Folding it
     // into the base would invent commissionable value that does not exist.
-    expect(r.ticket.baseFare.units).toBe(370700n);
-    expect(f(r.ticket.total)).toBe("3824.00"); // 3707.00 + 117.00 tax, no fee
+    expect(r.tickets[0].baseFare.units).toBe(370700n);
+    expect(f(r.tickets[0].total)).toBe("3824.00"); // 3707.00 + 117.00 tax, no fee
   });
 });
 
 describe("the single remaining coupon", () => {
   it("reads TLV–EWR in Q", () => {
-    expect(r.ticket.coupons).toHaveLength(1);
-    expect(r.ticket.coupons[0]).toMatchObject({
+    expect(r.tickets[0].coupons).toHaveLength(1);
+    expect(r.tickets[0].coupons[0]).toMatchObject({
       origin: "TLV", destination: "EWR", rbd: "Q",
       fareBasis: "QPRPMUS", marketingCarrier: "LY", departureDate: "2026-09-03",
     });
@@ -77,11 +77,11 @@ describe("the single remaining coupon", () => {
 });
 
 describe("what the EL AL contract makes of it", () => {
-  const w = calculate({ ticket: r.ticket, rules: LIVE });
+  const w = calculate({ ticket: r.tickets[0], rules: LIVE });
 
   it("pays nothing, and the file agrees", () => {
     expect(f(w.carrier.commission)).toBe("0.00");
-    expect(f(r.reportedFM!.amount)).toBe("0.00");
+    expect(f(r.passengers[0].reportedFM!.amount)).toBe("0.00");
   });
 
   it("pays nothing because the journey originates in Israel", () => {
@@ -93,10 +93,10 @@ describe("what the EL AL contract makes of it", () => {
   });
 
   it("would still pay nothing on origin alone: it is a bulk fare with no tour code", () => {
-    expect(r.ticket.bulk).toBe(true);
-    expect(r.ticket.fareType).toBe("net");
-    expect(r.ticket.tourCode).toBeNull();
-    expect(r.ticket.fareCalc).toContain("M/BT");
+    expect(r.tickets[0].bulk).toBe(true);
+    expect(r.tickets[0].fareType).toBe("net");
+    expect(r.tickets[0].tourCode).toBeNull();
+    expect(r.tickets[0].fareCalc).toContain("M/BT");
   });
 });
 

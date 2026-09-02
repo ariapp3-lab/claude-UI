@@ -7,8 +7,17 @@ Source adapters. Each one reads a file format and produces a canonical
 
 ```ts
 import { parseAmadeusAir } from "@commission/parsers";
-const { ticket, markup, reportedFM, warnings } = parseAmadeusAir(text);
+const { tickets, passengers, part, warnings } = parseAmadeusAir(text);
 ```
+
+**One record is many tickets.** An AIR record describes one priced itinerary
+but carries a ticket number per passenger. A five-passenger booking is five
+tickets, and reading the first `T-` element and stopping is the difference
+between reconciling a week's volume and reconciling a fraction of it — silently,
+because every ticket it *does* report is correct.
+
+**A record can also be a fragment.** The `AMD` line carries `2/3`: the sibling
+parts hold passengers this one does not.
 
 Reads the elements that bear on commission and carries the rest through in
 `raw`. It **reports rather than defaults**: anything it could not read lands in
@@ -34,7 +43,7 @@ a wrong number wearing a confident face.
 | `RM*EXA*` | additional collection | |
 | `RI` | airline change fee | kept out of the fare |
 
-### Six things that are easy to get wrong
+### Eight things that are easy to get wrong
 
 Each of these was found by a real ticket, not by reading a spec.
 
@@ -69,6 +78,13 @@ magnitude.
 **Several `RI` lines can appear, and the first is not the fee.** On a reissue
 the first is the credit for the exchanged ticket, as a negative amount. The
 change fee has to be matched by its description.
+
+**One `T-` element per passenger, not per file.** See above — this is the one
+that costs the most.
+
+**`M-` holds two fields, not one.** `YPRPF3R  CH` is fare basis `YPRPF3R` with
+ticket designator `CH`. Concatenated, no contract fare-basis pattern will ever
+match it.
 
 ### Exchanges
 

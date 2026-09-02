@@ -27,8 +27,8 @@ describe("waitlisted segments are not coupons", () => {
     // Four U- elements sit alongside the single H-. They are RQ/HL waitlist
     // requests that were never ticketed; counting them would have priced this
     // ticket five times over.
-    expect(r.ticket.coupons).toHaveLength(1);
-    expect(r.ticket.coupons[0]).toMatchObject({
+    expect(r.tickets[0].coupons).toHaveLength(1);
+    expect(r.tickets[0].coupons[0]).toMatchObject({
       origin: "ZRH", destination: "TLV", rbd: "C", fareBasis: "CF1EU",
       flightNumber: "LY0348", departureDate: "2026-09-03",
     });
@@ -41,14 +41,14 @@ describe("waitlisted segments are not coupons", () => {
 
 describe("fare and tax lines vary in shape", () => {
   it("reads a K-F fare line, not only K-B", () => {
-    expect(f(r.ticket.baseFare)).toBe("1546.00");
+    expect(f(r.tickets[0].baseFare)).toBe("1546.00");
   });
 
   it("reads a KFTF tax line, not only KFTB", () => {
-    expect(r.ticket.taxes.map((t) => `${t.code} ${f(t.amount)}`)).toEqual([
+    expect(r.tickets[0].taxes.map((t) => `${t.code} ${f(t.amount)}`)).toEqual([
       "AP 8.00", "CH 43.00", "IL 33.87",
     ]);
-    expect(f(r.ticket.total)).toBe("1630.87"); // 1546.00 + 84.87
+    expect(f(r.tickets[0].total)).toBe("1630.87"); // 1546.00 + 84.87
   });
 });
 
@@ -56,9 +56,9 @@ describe("the FM element is a percentage here, not an amount", () => {
   it("reads FM*M*5 as five per cent", () => {
     // "FM*G*2475.75A" is a sum of money. "FM*M*5" is a rate. Reading one as
     // the other is wrong by three orders of magnitude.
-    expect(r.reportedFM!.kind).toBe("percent");
-    expect(r.reportedFM).toMatchObject({ kind: "percent", rate: "5" });
-    expect(f(r.reportedFM!.amount)).toBe("77.30"); // 1546.00 × 5%
+    expect(r.passengers[0].reportedFM!.kind).toBe("percent");
+    expect(r.passengers[0].reportedFM).toMatchObject({ kind: "percent", rate: "5" });
+    expect(f(r.passengers[0].reportedFM!.amount)).toBe("77.30"); // 1546.00 × 5%
   });
 });
 
@@ -66,13 +66,13 @@ describe("two RI lines, only one of them a fee", () => {
   it("takes the change fee by description, not by position", () => {
     // The first RI line is -707.87, the credit for the exchanged ticket
     // (623.00 base + 84.87 tax). Taking it positionally books a credit as a fee.
-    expect(f(r.ticket.exchange!.changeFee!)).toBe("100.00");
+    expect(f(r.tickets[0].exchange!.changeFee!)).toBe("100.00");
   });
 });
 
 describe("the exchange arithmetic", () => {
   it("reads the replaced ticket and what it had already earned", () => {
-    const x = r.ticket.exchange!;
+    const x = r.tickets[0].exchange!;
     expect(x.originalTicket).toBe("114-7502333711");
     expect(f(x.originalBase)).toBe("623.00");
     expect(f(x.originalTax!)).toBe("84.87");
@@ -92,26 +92,26 @@ describe("the exchange arithmetic", () => {
   it("uses the ticketing date, seven weeks after the booking date", () => {
     // D- reads 260715;260902;260902. The first field is the creation date and
     // would place this ticket in a different month entirely.
-    expect(r.ticket.issueDate).toBe("2026-09-02");
+    expect(r.tickets[0].issueDate).toBe("2026-09-02");
   });
 });
 
 describe("this one is a published fare", () => {
   it("carries real NUC fare components, with no bulk marker", () => {
-    expect(r.ticket.bulk).toBe(false);
-    expect(r.ticket.fareType).toBe("published");
-    expect(r.ticket.fareCalc).toContain("NUC1546.00");
-    expect(r.ticket.fareCalc).not.toContain("M/BT");
+    expect(r.tickets[0].bulk).toBe(false);
+    expect(r.tickets[0].fareType).toBe("published");
+    expect(r.tickets[0].fareCalc).toContain("NUC1546.00");
+    expect(r.tickets[0].fareCalc).not.toContain("M/BT");
   });
 
   it("carries a surface segment", () => {
     // "/-ZRH" is a surface sector: the passenger reached Zurich by other means.
-    expect(r.ticket.fareCalc).toContain("/-ZRH");
+    expect(r.tickets[0].fareCalc).toContain("/-ZRH");
   });
 });
 
 describe("what the EL AL contract makes of it", () => {
-  const w = calculate({ ticket: r.ticket, rules: LIVE });
+  const w = calculate({ ticket: r.tickets[0], rules: LIVE });
 
   it("pays nothing: the journey originates in Switzerland", () => {
     expect(w.carrier.outcome).toBe("NIL");
@@ -124,8 +124,8 @@ describe("what the EL AL contract makes of it", () => {
     // The contract says nil on a ZRH-originating journey; the ticket claims
     // 77.30. This is precisely the variance the reconciliation queue exists
     // for, and the engine states both figures rather than picking one.
-    expect(f(r.reportedFM!.amount)).toBe("77.30");
+    expect(f(r.passengers[0].reportedFM!.amount)).toBe("77.30");
     expect(f(w.carrier.commission)).toBe("0.00");
-    expect(r.reportedFM!.amount.units - w.carrier.commission.units).toBe(7730n);
+    expect(r.passengers[0].reportedFM!.amount.units - w.carrier.commission.units).toBe(7730n);
   });
 });
