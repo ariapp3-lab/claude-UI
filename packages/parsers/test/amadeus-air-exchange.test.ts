@@ -81,7 +81,7 @@ describe("what the EL AL contract makes of it", () => {
 
   it("pays nothing, and the file agrees", () => {
     expect(f(w.carrier.commission)).toBe("0.00");
-    expect(f(r.reportedFM!)).toBe("0.00");
+    expect(f(r.reportedFM!.amount)).toBe("0.00");
   });
 
   it("pays nothing because the journey originates in Israel", () => {

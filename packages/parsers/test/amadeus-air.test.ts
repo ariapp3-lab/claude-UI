@@ -68,7 +68,8 @@ describe("money", () => {
 
   it("computes the markup, and it matches the file's own FM element", () => {
     expect(f(r.markup)).toBe("2475.75");
-    expect(f(r.reportedFM!)).toBe("2475.75");
+    expect(r.reportedFM!.kind).toBe("amount");
+    expect(f(r.reportedFM!.amount)).toBe("2475.75");
   });
 
   it("explodes XT into its nine components rather than trusting the TAX- line", () => {

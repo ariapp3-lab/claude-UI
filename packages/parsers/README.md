@@ -34,7 +34,9 @@ a wrong number wearing a confident face.
 | `RM*EXA*` | additional collection | |
 | `RI` | airline change fee | kept out of the fare |
 
-### Three things that are easy to get wrong
+### Six things that are easy to get wrong
+
+Each of these was found by a real ticket, not by reading a spec.
 
 **The `D-` element carries three dates.** Creation, ticketing, invoice. On a
 straight issue they are identical, which hides the problem; on a reissue they
@@ -48,6 +50,25 @@ cannot see through it. The `KSTB`/`KNTB`/`KFTB` breakdown is the real thing.
 
 **The digits after `H-` are not coupon numbers.** They are Amadeus element
 references (`010`, `021`, `006`). Coupons are numbered by the order they appear.
+
+**`U-` elements look exactly like coupons and are not.** They are waitlisted or
+unconfirmed segments (`RQ`/`HL`) that were never ticketed. One sample carries a
+single ticketed coupon alongside four waitlisted ones — counting them would
+price the ticket five times over.
+
+**Line shapes vary.** The fare line is `KS-`/`KN-` on a straight issue, `K-B` on
+one exchange and `K-F` on another; the tax breakdown is `KSTB`, `KNTB`, `KFTB`
+*or* `KFTF`. Matching a single literal loses the fare or the entire tax stack
+silently.
+
+**`FM` is a percentage as often as an amount.** `FM*G*2475.75A` is a sum of
+money; `FM*M*5` is five per cent. The trailing `A` is the only thing that
+distinguishes them, and reading one as the other is wrong by three orders of
+magnitude.
+
+**Several `RI` lines can appear, and the first is not the fee.** On a reissue
+the first is the credit for the exchanged ticket, as a negative amount. The
+change fee has to be matched by its description.
 
 ### Exchanges
 

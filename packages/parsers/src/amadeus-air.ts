@@ -12,8 +12,34 @@
  * wearing a confident face.
  */
 
-import { money, parseMoney, subtract, sum, type Money } from "@commission/engine";
+import { applyRate, money, parseMoney, subtract, sum, type Money } from "@commission/engine";
 import type { Coupon, FareType, TaxItem, TicketDocument } from "@commission/engine";
+
+/**
+ * The FM element records commission either as an amount (a trailing "A") or as
+ * a bare percentage. "FM*G*2475.75A" is a sum of money; "FM*M*5" is five per
+ * cent. Reading one as the other is off by three orders of magnitude.
+ */
+export type ReportedCommission =
+  | { readonly kind: "amount"; readonly amount: Money }
+  | { readonly kind: "percent"; readonly rate: string; readonly amount: Money };
+
+/**
+ * The ATC element is the airline's own exchange arithmetic. Only the positions
+ * verified against more than one real document are named here; the rest stay in
+ * `fields` rather than being labelled on a guess.
+ */
+export interface AtcBlock {
+  readonly originalBase: Money | null;
+  readonly newBase: Money | null;
+  readonly collectedFareDifference: Money | null;
+  readonly originalTax: Money | null;
+  readonly newTax: Money | null;
+  readonly newTotal: Money | null;
+  readonly changeFee: Money | null;
+  readonly totalCollected: Money | null;
+  readonly fields: readonly (Money | null)[];
+}
 
 export interface AirParseResult {
   readonly ticket: TicketDocument;
@@ -21,7 +47,9 @@ export interface AirParseResult {
   /** Revenue on a net fare: selling less net. Zero on published business. */
   readonly markup: Money;
   /** The commission or markup the file itself records (Amadeus FM element). */
-  readonly reportedFM: Money | null;
+  readonly reportedFM: ReportedCommission | null;
+  /** The ATC exchange calculation, when the document carries one. */
+  readonly atc: AtcBlock | null;
   readonly agencyIata: string | null;
   readonly recordLocator: string | null;
   readonly warnings: string[];
@@ -176,6 +204,17 @@ export function parseAmadeusAir(text: string): AirParseResult {
   }
   if (coupons.length === 0) warnings.push("no flight coupons (H- elements) found");
 
+  // U- lines are waitlisted or unconfirmed segments (RQ/HL) that were never
+  // ticketed. They look exactly like coupons and must never be counted as any:
+  // one sample carries a single ticketed coupon alongside four waitlisted ones,
+  // which would have priced the ticket five times over.
+  const waitlisted = lines.filter((l) => /^U-\d/.test(l)).length;
+  if (waitlisted > 0) {
+    warnings.push(
+      `${waitlisted} waitlisted segment(s) (U- elements) present and correctly ignored`,
+    );
+  }
+
   // Fare basis codes arrive as one M- element, positionally per segment.
   const mLine = find(/^M-/);
   if (mLine) {
@@ -194,7 +233,7 @@ export function parseAmadeusAir(text: string): AirParseResult {
   // KS is the selling fare (what the passenger paid), KN the net (what the
   // agency owes the airline). They are equal on published business; a gap is
   // the signature of a net fare, where the revenue is markup, not commission.
-  const ksLine = find(/^KS-/) ?? find(/^K-B/);
+  const ksLine = find(/^KS-/) ?? find(/^K-[A-Z][A-Z]{3}[\d]/);
   const knLine = find(/^KN-/);
   const currency = /USD/.test(ksLine ?? knLine ?? "") ? "USD" : "USD";
 
@@ -205,7 +244,7 @@ export function parseAmadeusAir(text: string): AirParseResult {
 
   // The KSTB/KNTB breakdown is authoritative; the TAX- line aggregates small
   // taxes into XT and must never be used as the tax stack.
-  const tbLine = find(/^KSTB/) ?? find(/^KNTB/) ?? find(/^KFTB/);
+  const tbLine = find(/^K[SNF]T[BF];/);
   const taxes: TaxItem[] = [];
   if (tbLine) {
     for (const field of tbLine.split(";").slice(1)) {
@@ -242,6 +281,43 @@ export function parseAmadeusAir(text: string): AirParseResult {
   const ftLine = find(/^FT/);
   const tourCode = ftLine ? (/^FT\*?[A-Z]?\*?([A-Z0-9]+)/.exec(ftLine)?.[1] ?? null) : null;
 
+  // --- the airline's own exchange arithmetic -------------------------------
+  const atcLine = find(/^ATC-/);
+  const atc: AtcBlock | null = (() => {
+    if (!atcLine) return null;
+    const vals = fields(atcLine).map((v) => {
+      const m = /([A-Z]{3})\s*(-?[\d,]+\.?\d*)/.exec(v);
+      return m ? parseMoney(m[2], m[1]) : null;
+    });
+    const block: AtcBlock = {
+      originalBase: vals[0] ?? null,
+      newBase: vals[1] ?? null,
+      collectedFareDifference: vals[2] ?? null,
+      originalTax: vals[3] ?? null,
+      newTax: vals[4] ?? null,
+      newTotal: vals[7] ?? null,
+      changeFee: vals[8] ?? null,
+      totalCollected: vals[9] ?? null,
+      fields: vals,
+    };
+    // Two independent checks the airline's own numbers must satisfy.
+    if (block.newTotal && block.newTotal.units !== total.units) {
+      warnings.push(
+        `ATC states a new total of ${block.newTotal.units} but the fare and taxes give ${total.units}`,
+      );
+    }
+    if (block.collectedFareDifference && block.changeFee && block.totalCollected) {
+      const expect = block.collectedFareDifference.units + block.changeFee.units;
+      if (expect !== block.totalCollected.units) {
+        warnings.push(
+          `ATC total collected ${block.totalCollected.units} is not the fare difference ` +
+            `plus the change fee (${expect})`,
+        );
+      }
+    }
+    return block;
+  })();
+
   // --- document type -------------------------------------------------------
   // The B- element names the transaction: TTP/EXCH is a reissue, TTP/RFND a
   // refund. Reading it off the ticket number would be a guess.
@@ -259,9 +335,12 @@ export function parseAmadeusAir(text: string): AirParseResult {
   //                                                          base ──┘  tax ──┘  comm ──┘
   const foLine = find(/^FO/);
   const changeFee = (() => {
-    const ri = find(/^RI[A-Z]?[A-Z]{3};/);
+    // Several RI lines can appear. On a reissue the first is the credit for the
+    // ticket being exchanged, as a negative amount; taking it positionally
+    // would book a -707.87 credit as a change fee.
+    const ri = lines.find((l) => /^RI[A-Z]?[A-Z]{3};/.test(l) && /CHANGE FEE/i.test(l));
     if (!ri) return null;
-    const m = /;\s*([\d,]+\.\d{2})/.exec(ri);
+    const m = /;\s*(-?[\d,]+\.\d{2})/.exec(ri);
     return m ? parseMoney(m[1], currency) : null;
   })();
   const additionalCollection = (() => {
@@ -281,26 +360,47 @@ export function parseAmadeusAir(text: string): AirParseResult {
     const c = /\/C([\d,]+\.\d{2})/.exec(foLine)?.[1];
     if (!originalTicket) warnings.push("FO element present but no original ticket number in it");
     if (!b) warnings.push("FO element present but no original base fare in it");
+    const foBase = b ? parseMoney(b, currency) : null;
     exchange = {
       originalTicket: originalTicket ?? "UNKNOWN",
-      originalBase: b ? parseMoney(b, currency) : money(0n, currency),
+      originalBase: foBase ?? money(0n, currency),
       originalTax: x ? parseMoney(x, currency) : null,
       originalCommission: c ? parseMoney(c, currency) : null,
-      additionalCollection,
-      changeFee,
+      // RM*EXA states the fare difference; where it is absent the ATC block's
+      // collected difference stands in. They are not always the same number,
+      // so which one was used is recorded rather than blended.
+      additionalCollection: additionalCollection ?? atc?.collectedFareDifference ?? null,
+      changeFee: changeFee ?? atc?.changeFee ?? null,
     };
+    if (foBase && atc?.originalBase && foBase.units !== atc.originalBase.units) {
+      warnings.push(
+        `FO gives an original base of ${foBase.units} but ATC gives ${atc.originalBase.units}`,
+      );
+    }
   } else if (documentType === "EXCH") {
     warnings.push("document is an exchange but carries no FO element to net against");
   }
 
   // --- commission recorded in the file -------------------------------------
   const fmLine = find(/^FM/);
-  const reportedFM = fmLine
-    ? (() => {
-        const m = /\*[A-Z]?\*?([\d,]+\.\d{2})/.exec(fmLine) ?? /([\d,]+\.\d{2})/.exec(fmLine);
-        return m ? parseMoney(m[1], currency) : null;
-      })()
-    : null;
+  const reportedFM: ReportedCommission | null = (() => {
+    if (!fmLine) return null;
+    const body = fmLine.split(";")[0] ?? fmLine;
+    const amount = /\*?([\d,]+\.\d{2})A\b/.exec(body);
+    if (amount) {
+      return { kind: "amount" as const, amount: parseMoney(amount[1], currency) };
+    }
+    const percent = /\*([\d]+(?:\.\d+)?)\s*$/.exec(body);
+    if (percent) {
+      return {
+        kind: "percent" as const,
+        rate: percent[1],
+        amount: applyRate(baseFare, percent[1], "half_up"),
+      };
+    }
+    warnings.push(`FM element "${body}" could not be read as an amount or a rate`);
+    return null;
+  })();
 
   const ticket: TicketDocument = {
     ticketNumber: ticketNumber ?? "UNKNOWN",
@@ -321,12 +421,12 @@ export function parseAmadeusAir(text: string): AirParseResult {
     tourCode,
     fareType,
     paxType: "ADT",
-    reportedCommission: reportedFM,
+    reportedCommission: reportedFM?.amount ?? null,
     coupons,
   };
 
   const markup =
     sellingBase && netBase ? subtract(sellingBase, netBase) : money(0n, currency);
 
-  return { ticket, documentType, markup, reportedFM, agencyIata, recordLocator, warnings, raw };
+  return { ticket, documentType, markup, reportedFM, atc, agencyIata, recordLocator, warnings, raw };
 }
