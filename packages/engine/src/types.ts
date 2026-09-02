@@ -314,6 +314,19 @@ export interface Rule {
     readonly travelBetween?: DateWindow;
   };
 
+  /**
+   * How a reissue is commissioned. Contracts differ and most are silent, so
+   * this is stated per rule rather than assumed:
+   *
+   *   net_of_original        commission on the new fare, less what the ticket
+   *                          it replaces already earned. The default, and what
+   *                          the Amadeus FO element is built to support.
+   *   added_collection_only  the rate applied to the fare difference alone.
+   *   full_fare              no netting — the new fare is commissioned afresh.
+   *                          Rare, and pays twice on carried-over fare.
+   */
+  readonly exchangeTreatment?: "net_of_original" | "added_collection_only" | "full_fare";
+
   readonly match: RuleMatch;
   readonly award: Award;
   readonly source?: RuleSource;
@@ -364,6 +377,14 @@ export interface LayerResult {
   /** The amount the commissionable basis resolved to. */
   readonly basis?: Money;
   readonly basisTrace?: readonly BasisTrace[];
+  /**
+   * Commission on this document's own fare, before a reissue is netted against
+   * what the ticket it replaces already earned. Equal to `commission` on a
+   * straight issue.
+   */
+  readonly gross?: Money;
+  /** Commission already recognised on the replaced ticket, and reversed here. */
+  readonly priorCommission?: Money;
   /** Front-end commission awarded at this layer, payable on this ticket. */
   readonly commission: Money;
   /**

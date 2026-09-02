@@ -444,11 +444,11 @@ function emptyLayer(
  * means. Only when the winning rule declares `scope: "coupon"` is the ticket
  * re-evaluated coupon by coupon against a prorated base.
  */
-export function calculateCarrierLayer(
+function computeCarrierGross(
   ticket: TicketDocument,
   rules: readonly Rule[],
   opts: CalculationOptions = {},
-): LayerResult & { rate?: string } {
+): LayerResult & { rate?: string; rule?: Rule } {
   const geo = opts.geo ?? DEFAULT_GEO;
   const defaultRounding = opts.defaultRounding ?? "half_up";
   const ctx: MatchContext = { geo };
@@ -573,6 +573,7 @@ export function calculateCarrierLayer(
       rejected: selection.rejected,
       notes,
       rate: winner.award.rate,
+      rule: winner,
     };
   }
 
@@ -636,6 +637,7 @@ export function calculateCarrierLayer(
       rejected: selection.rejected,
       notes,
       rate: winner.award.rate,
+      rule: winner,
     };
   }
 
@@ -666,7 +668,89 @@ export function calculateCarrierLayer(
     rejected: selection.rejected,
     notes: [...notes, ...result.notes],
     rate: result.rateUsed ?? winner.award.rate,
+    rule: winner,
   };
+}
+
+/**
+ * Carrier → host agency, with a reissue netted against the ticket it replaces.
+ *
+ * A reissue carries the fare of the ticket it replaces plus whatever was
+ * collected on top. Commissioning the whole new fare pays a second time on
+ * every dollar carried over, so the commission already recognised on the
+ * original is reversed here. The Amadeus FO element states that figure
+ * (`/C0.00`, `/C100.00`) precisely so it can be.
+ *
+ * Where the original figure is missing the engine says so rather than
+ * assuming zero: assuming zero is what produces the double payment.
+ */
+export function calculateCarrierLayer(
+  ticket: TicketDocument,
+  rules: readonly Rule[],
+  opts: CalculationOptions = {},
+): LayerResult & { rate?: string } {
+  const layer = computeCarrierGross(ticket, rules, opts);
+  const { rule, ...rest } = layer;
+
+  if (ticket.documentType !== "EXCH") return rest;
+
+  const treatment = rule?.exchangeTreatment ?? "net_of_original";
+  const notes = [...(rest.notes ?? [])];
+  const gross = rest.commission;
+
+  if (treatment === "full_fare") {
+    notes.push(
+      "reissue commissioned on the full new fare; this contract does not net " +
+        "against the ticket it replaces",
+    );
+    return { ...rest, gross, notes };
+  }
+
+  if (!ticket.exchange) {
+    // An exchange with nothing to net against. The parser raises this too, but
+    // the calculation must not quietly pay on the whole fare because of it.
+    if (!isZero(gross)) {
+      notes.push(
+        "this document is a reissue but carries no record of the ticket it " +
+          "replaces, so commission already taken on that ticket cannot be reversed",
+      );
+      return { ...rest, gross, outcome: "INCOMPLETE", commission: zero(ticket.currency), notes };
+    }
+    return { ...rest, gross, notes };
+  }
+
+  if (treatment === "added_collection_only") {
+    const added = ticket.exchange.additionalCollection;
+    if (!added) {
+      notes.push("this contract commissions the added collection, which the document does not state");
+      return { ...rest, gross, outcome: "INCOMPLETE", commission: zero(ticket.currency), notes };
+    }
+    const ratio = ticket.baseFare.units === 0n
+      ? 0n
+      : (gross.units * added.units) / ticket.baseFare.units;
+    const commission = { units: ratio, currency: ticket.currency };
+    notes.push(
+      `commissioned on the added collection of ${formatMoney(added)} rather than ` +
+        `the full fare of ${formatMoney(ticket.baseFare)}`,
+    );
+    return { ...rest, gross, commission, notes };
+  }
+
+  const prior = ticket.exchange.originalCommission;
+  if (prior === null || prior === undefined) {
+    notes.push(
+      `commission already taken on ${ticket.exchange.originalTicket} is not stated, ` +
+        "so this reissue cannot be netted without paying twice on the carried-over fare",
+    );
+    return { ...rest, gross, outcome: "INCOMPLETE", commission: zero(ticket.currency), notes };
+  }
+
+  const commission = subtract(gross, prior);
+  notes.push(
+    `reissue: ${formatMoney(gross)} on the new fare less ${formatMoney(prior)} already ` +
+      `taken on ${ticket.exchange.originalTicket}`,
+  );
+  return { ...rest, gross, priorCommission: prior, commission, notes };
 }
 
 // ---------------------------------------------------------------------------
@@ -719,6 +803,17 @@ export function calculate(
     flags.push({
       code: carrier.outcome,
       message: carrier.notes?.[0] ?? "carrier layer could not be calculated",
+    });
+  }
+  if (carrier.priorCommission && isNegative(carrier.commission)) {
+    // A reissue to a cheaper fare owes commission back. Legitimate, and it must
+    // reach a human before it lands on a statement as a negative line.
+    flags.push({
+      code: "REVIEW",
+      message:
+        `reissue nets to ${formatMoney(carrier.commission)} ${currency}: the replaced ticket ` +
+        `earned ${formatMoney(carrier.priorCommission)} and the new fare earns less, so ` +
+        "commission is owed back",
     });
   }
   if (carrier.accrual && !isZero(carrier.accrual)) {
