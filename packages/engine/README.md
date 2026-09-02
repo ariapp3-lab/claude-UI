@@ -117,8 +117,26 @@ Three suites, 50 assertions:
   4,000-ticket batch that must reconcile exactly (a half-cent bias is invisible
   on one ticket and $20 a week at real volume)
 
+## Lifecycle
+
+A ticket is not a row. Void, refund and reissue each reverse part of what an
+earlier document recognised, and the engine takes that figure from the source
+document rather than recomputing it — or says it could not.
+
+| Event | Behaviour |
+| --- | --- |
+| **Void** | Reverses the whole commission. The sale never happened. |
+| **Full refund** | Reverses the whole commission at the original figure. |
+| **Partial refund** | Reverses the refunded share only, split with `allocate` so the refunded and retained parts always sum back to the original. |
+| **Penalty** | Excluded from the refunded fare. It is fare the carrier keeps, so the commission on it stands. |
+| **Reissue** | Commission on the new fare, less what the replaced ticket already earned. `added_collection_only` and `full_fare` are supported where a contract says so. |
+
+Each of these returns `INCOMPLETE` rather than a number when the document does
+not say what the earlier one earned. Assuming zero is exactly what produces a
+double payment.
+
 ## Not yet implemented
 
-Refund and exchange netting, ADM handling, PLB period settlement, and the
-ingestion adapters. `plb` awards are computed as accruals and deliberately kept
-out of the per-ticket payable figure. See §13 of the specification.
+ADM/ACM handling and PLB period settlement. `plb` awards are computed as
+accruals and deliberately kept out of the per-ticket payable figure. See §13 of
+the specification.

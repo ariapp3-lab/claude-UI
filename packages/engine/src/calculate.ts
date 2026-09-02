@@ -673,6 +673,178 @@ function computeCarrierGross(
 }
 
 /**
+ * A void reverses the whole of it.
+ *
+ * A ticket voided inside the void window was never sold, so the commission was
+ * never earned. The original entry is not deleted — it is reversed — so the
+ * ledger still shows that the sale happened and was undone.
+ */
+function voidReversal(
+  ticket: TicketDocument,
+  layer: LayerResult & { rate?: string },
+): LayerResult & { rate?: string } {
+  const prior =
+    ticket.refund?.originalCommission ?? ticket.exchange?.originalCommission ?? null;
+
+  if (prior === null || prior === undefined) {
+    return {
+      ...layer,
+      gross: layer.commission,
+      commission: zero(ticket.currency),
+      outcome: "INCOMPLETE",
+      notes: [
+        ...(layer.notes ?? []),
+        "this document voids a ticket but does not say what commission that " +
+          "ticket had taken, so there is nothing to reverse against",
+      ],
+    };
+  }
+
+  return {
+    ...layer,
+    gross: layer.commission,
+    priorCommission: prior,
+    commission: negate(prior),
+    outcome: isZero(prior) ? layer.outcome : "CALCULATED",
+    notes: [
+      ...(layer.notes ?? []),
+      `void: the whole of ${formatMoney(prior)} recognised on ` +
+        `${ticket.refund?.originalTicket ?? ticket.ticketNumber} is reversed`,
+    ],
+  };
+}
+
+/**
+ * A refund reverses commission on the fare actually given back.
+ *
+ * Two things make this more than a sign flip. A partial refund returns only
+ * part of the fare, so only that part of the commission comes back — and the
+ * split has to be exact, because a clawback that rounds the other way from the
+ * entry it reverses leaves a permanent cent behind on every refunded ticket.
+ * And the cancellation penalty is fare the carrier keeps, so it is excluded
+ * from the refunded base rather than clawed back with it.
+ */
+function refundReversal(
+  ticket: TicketDocument,
+  layer: LayerResult & { rate?: string },
+  rules: readonly Rule[],
+  opts: CalculationOptions,
+): LayerResult & { rate?: string } {
+  const notes = [...(layer.notes ?? [])];
+  const r = ticket.refund;
+
+  // A document that already carries negative amounts reverses itself: the rate
+  // applies to a negative basis and rounds by magnitude, so it mirrors the
+  // entry it reverses exactly.
+  if (!r) {
+    if (ticket.baseFare.units < 0n) {
+      notes.push("refund priced directly from the negative amounts on the document");
+      return { ...layer, gross: layer.commission, notes };
+    }
+    if (isZero(layer.commission)) return { ...layer, gross: layer.commission, notes };
+    return {
+      ...layer,
+      gross: layer.commission,
+      commission: zero(ticket.currency),
+      outcome: "INCOMPLETE",
+      notes: [
+        ...notes,
+        "this document is a refund but carries no record of the ticket it " +
+          "refunds, so commission already taken cannot be reversed",
+      ],
+    };
+  }
+
+  if (r.penalty && !isZero(r.penalty)) {
+    notes.push(
+      `penalty of ${formatMoney(r.penalty)} retained by the carrier and excluded ` +
+        "from the refunded fare — it is not commissionable",
+    );
+  }
+
+  const prior = r.originalCommission;
+  if (prior === null || prior === undefined) {
+    // Derive it, but say that it was derived: a figure the document stated and
+    // a figure we recomputed are not the same kind of fact.
+    const asIssued: TicketDocument = {
+      ...ticket,
+      documentType: "TKT",
+      baseFare: r.originalBase,
+      refund: null,
+    };
+    const recomputed = computeCarrierGross(asIssued, rules, opts);
+    if (recomputed.outcome !== "CALCULATED" && recomputed.outcome !== "NIL") {
+      return {
+        ...layer,
+        gross: layer.commission,
+        commission: zero(ticket.currency),
+        outcome: "INCOMPLETE",
+        notes: [...notes, "the refunded ticket's own commission could not be established"],
+      };
+    }
+    notes.push(
+      `the refunded ticket's commission of ${formatMoney(recomputed.commission)} was ` +
+        "recomputed from the contract, not read off the document",
+    );
+    return finishRefund(ticket, layer, recomputed.commission, r, notes);
+  }
+
+  return finishRefund(ticket, layer, prior, r, notes);
+}
+
+function finishRefund(
+  ticket: TicketDocument,
+  layer: LayerResult & { rate?: string },
+  prior: Money,
+  r: NonNullable<TicketDocument["refund"]>,
+  notes: string[],
+): LayerResult & { rate?: string } {
+  if (r.originalBase.units === 0n) {
+    return {
+      ...layer,
+      gross: layer.commission,
+      commission: negate(prior),
+      outcome: isZero(prior) ? layer.outcome : "CALCULATED",
+      priorCommission: prior,
+      notes: [...notes, `full reversal of ${formatMoney(prior)}`],
+    };
+  }
+
+  const full = r.refundedBase.units >= r.originalBase.units;
+  if (full) {
+    notes.push(`full refund: the whole of ${formatMoney(prior)} is reversed`);
+    return {
+      ...layer,
+      gross: layer.commission,
+      priorCommission: prior,
+      commission: negate(prior),
+      outcome: isZero(prior) ? layer.outcome : "CALCULATED",
+      notes,
+    };
+  }
+
+  // Pro-rata on the refunded share of the base. `allocate` splits the original
+  // commission into the refunded part and the retained part so the two are
+  // guaranteed to sum back to it — a clawback that does not is a cent that
+  // never comes home.
+  const retained = r.originalBase.units - r.refundedBase.units;
+  const [refunded] = allocate(prior, [r.refundedBase.units, retained]);
+  notes.push(
+    `partial refund: ${formatMoney(r.refundedBase)} of ${formatMoney(r.originalBase)} ` +
+      `returned, so ${formatMoney(refunded)} of the ${formatMoney(prior)} recognised ` +
+      "is reversed",
+  );
+  return {
+    ...layer,
+    gross: layer.commission,
+    priorCommission: prior,
+    commission: negate(refunded),
+    outcome: isZero(refunded) ? layer.outcome : "CALCULATED",
+    notes,
+  };
+}
+
+/**
  * Carrier → host agency, with a reissue netted against the ticket it replaces.
  *
  * A reissue carries the fare of the ticket it replaces plus whatever was
@@ -692,6 +864,8 @@ export function calculateCarrierLayer(
   const layer = computeCarrierGross(ticket, rules, opts);
   const { rule, ...rest } = layer;
 
+  if (ticket.documentType === "VOID") return voidReversal(ticket, rest);
+  if (ticket.documentType === "RFND") return refundReversal(ticket, rest, rules, opts);
   if (ticket.documentType !== "EXCH") return rest;
 
   const treatment = rule?.exchangeTreatment ?? "net_of_original";
@@ -816,14 +990,18 @@ export function calculate(
     });
   }
   if (carrier.priorCommission && isNegative(carrier.commission)) {
-    // A reissue to a cheaper fare owes commission back. Legitimate, and it must
-    // reach a human before it lands on a statement as a negative line.
+    // Commission going back out is legitimate on a void, a refund or a reissue
+    // to a cheaper fare — and it must reach a human before it lands on a
+    // statement as a negative line.
+    const kind =
+      ticket.documentType === "VOID" ? "void"
+      : ticket.documentType === "RFND" ? "refund"
+      : "reissue";
     flags.push({
       code: "REVIEW",
       message:
-        `reissue nets to ${formatMoney(carrier.commission)} ${currency}: the replaced ticket ` +
-        `earned ${formatMoney(carrier.priorCommission)} and the new fare earns less, so ` +
-        "commission is owed back",
+        `${kind} reverses ${formatMoney(negate(carrier.commission))} ${currency} against ` +
+        `${formatMoney(carrier.priorCommission)} previously recognised — commission is owed back`,
     });
   }
   if (carrier.accrual && !isZero(carrier.accrual)) {

@@ -124,6 +124,29 @@ export interface TicketDocument {
     readonly changeFee?: Money | null;
   } | null;
 
+  /**
+   * Refund detail. A refund reverses commission on the portion of the fare
+   * actually given back, which on a partial refund is not the whole of it.
+   *
+   * The cancellation penalty is deliberately separate: it is fare the airline
+   * keeps, not fare the passenger recovers, and it is not commissionable. A
+   * refund that reverses commission on the penalty as well hands money back
+   * that was never earned on it.
+   */
+  readonly refund?: {
+    readonly originalTicket: string;
+    /** Base fare on the ticket being refunded. */
+    readonly originalBase: Money;
+    /** Commission recognised on that ticket, when the document states it. */
+    readonly originalCommission?: Money | null;
+    /** Portion of the base actually refunded, as a positive amount. */
+    readonly refundedBase: Money;
+    /** Retained by the carrier — never commissionable, never reversed. */
+    readonly penalty?: Money | null;
+    /** True when only part of the ticket is being refunded. */
+    readonly partial?: boolean;
+  } | null;
+
   readonly coupons: readonly Coupon[];
 
   /** Sub-agent this ticket was issued for, when applicable. */
