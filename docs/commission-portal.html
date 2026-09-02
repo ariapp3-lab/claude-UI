@@ -1,0 +1,694 @@
+<title>Commission Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --ground:#f1f5f9; --card:#ffffff; --card-2:#f8fafc; --card-3:#eef2f7;
+  --ink:#0f172a; --ink-2:#475569; --ink-3:#8695a8;
+  --line:#e2e8f0; --line-2:#cbd5e1;
+  --rail:#0f172a; --rail-hover:#1e293b; --rail-active:#1e3a5f;
+  --rail-text:#94a3b8; --rail-text-hi:#e2e8f0;
+  --brand:#16a34a;
+  --ok:#15803d; --ok-bg:#dcfce7;
+  --warn:#b45309; --warn-bg:#fef3c7;
+  --crit:#b91c1c; --crit-bg:#fee2e2;
+  --info:#1d4ed8; --info-bg:#dbeafe;
+  --shadow:0 1px 3px rgb(15 23 42 / .07), 0 1px 2px -1px rgb(15 23 42 / .07);
+  --sans:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --ground:#0b1017; --card:#141a23; --card-2:#1a212b; --card-3:#212a36;
+  --ink:#e8edf3; --ink-2:#a3b0c0; --ink-3:#788697;
+  --line:#252e3a; --line-2:#38414f;
+  --rail:#080c12; --rail-hover:#161d27; --rail-active:#1c3350;
+  --rail-text:#8695a8; --rail-text-hi:#e2e8f0;
+  --brand:#4ade80;
+  --ok:#5cc98c; --ok-bg:#0f2a1c;
+  --warn:#e0a252; --warn-bg:#2c2011;
+  --crit:#ef8080; --crit-bg:#2e1414;
+  --info:#7ba7ee; --info-bg:#111f38;
+  --shadow:0 1px 3px rgb(0 0 0 / .5), 0 1px 2px -1px rgb(0 0 0 / .5);
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0b1017; --card:#141a23; --card-2:#1a212b; --card-3:#212a36;
+  --ink:#e8edf3; --ink-2:#a3b0c0; --ink-3:#788697;
+  --line:#252e3a; --line-2:#38414f;
+  --rail:#080c12; --rail-hover:#161d27; --rail-active:#1c3350;
+  --rail-text:#8695a8; --rail-text-hi:#e2e8f0;
+  --brand:#4ade80;
+  --ok:#5cc98c; --ok-bg:#0f2a1c;
+  --warn:#e0a252; --warn-bg:#2c2011;
+  --crit:#ef8080; --crit-bg:#2e1414;
+  --info:#7ba7ee; --info-bg:#111f38;
+  --shadow:0 1px 3px rgb(0 0 0 / .5), 0 1px 2px -1px rgb(0 0 0 / .5);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:216px minmax(0,1fr);min-height:100vh}
+@media (max-width:900px){.app{grid-template-columns:1fr}}
+
+aside{background:var(--rail);color:var(--rail-text);padding:18px 12px;display:flex;flex-direction:column;gap:22px}
+@media (max-width:900px){aside{flex-direction:row;align-items:center;gap:14px;padding:12px;overflow-x:auto}}
+.brandmark{display:flex;align-items:center;gap:9px;padding:0 6px}
+.brandmark .dot{width:26px;height:26px;border-radius:7px;background:var(--brand);display:grid;place-items:center;flex:none}
+.brandmark .dot span{font-family:var(--mono);font-size:12px;font-weight:600;color:#04220f}
+.brandmark b{color:var(--rail-text-hi);font-size:14.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+
+.switch{display:flex;flex-direction:column;gap:3px;background:var(--rail-hover);padding:4px;border-radius:9px}
+@media (max-width:900px){.switch{flex-direction:row;flex:none}}
+.switch button{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:6px;font-size:12.5px;font-weight:500;color:var(--rail-text);text-align:left;white-space:nowrap}
+.switch button[aria-pressed="true"]{background:var(--rail-active);color:#fff}
+.switch button:hover{color:var(--rail-text-hi)}
+.who{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:#5b6979;margin:0 0 6px 6px}
+
+nav{display:flex;flex-direction:column;gap:2px}
+@media (max-width:900px){nav{flex-direction:row}}
+nav a{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;font-size:13px;font-weight:500;color:var(--rail-text);text-decoration:none;white-space:nowrap}
+nav a[aria-current]{background:var(--rail-active);color:#fff}
+nav a:hover:not([aria-current]){background:var(--rail-hover);color:var(--rail-text-hi)}
+nav a .n{font-family:var(--mono);font-size:11px;opacity:.75}
+.railfoot{margin-top:auto;padding:0 8px;font-family:var(--mono);font-size:10px;line-height:1.7;color:#5b6979}
+@media (max-width:900px){.railfoot{display:none}}
+
+main{padding:22px 26px 60px;min-width:0}
+@media (max-width:640px){main{padding:16px 14px 40px}}
+
+/* ---------- page head ---------- */
+.head{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+.head h1{font-size:21px;font-weight:600;letter-spacing:-.02em;margin:0 0 3px}
+.head p{margin:0;color:var(--ink-2);font-size:13.5px;max-width:62ch}
+.period{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 12px;box-shadow:var(--shadow)}
+.period .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.period .v{font-family:var(--mono);font-size:12.5px;font-weight:500}
+
+/* ---------- stats ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin-bottom:22px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 15px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:5px}
+.stat .k{font-size:11.5px;font-weight:500;color:var(--ink-3);letter-spacing:.01em}
+.stat .v{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat .s{font-size:11.5px;color:var(--ink-2)}
+.stat.crit{border-color:color-mix(in srgb,var(--crit) 40%,var(--line))}
+.stat.crit .v{color:var(--crit)}
+.stat.warn .v{color:var(--warn)}
+.stat.ok .v{color:var(--ok)}
+
+/* ---------- panels ---------- */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+.panel>header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line)}
+.panel>header h2{margin:0;font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.panel>header .sub{font-size:12.5px;color:var(--ink-3)}
+
+/* ---------- table ---------- */
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:720px}
+th{text-align:left;font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);padding:9px 14px;background:var(--card-2);border-bottom:1px solid var(--line);white-space:nowrap}
+th.r,td.r{text-align:right}
+td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--card-2)}
+tr.row td:first-child{border-left:3px solid transparent}
+tr.row.sev-crit td:first-child{border-left-color:var(--crit)}
+tr.row.sev-warn td:first-child{border-left-color:var(--warn)}
+tr.row.sev-ok td:first-child{border-left-color:var(--ok)}
+td.tkt{font-family:var(--mono);font-size:12.5px;font-weight:500;white-space:nowrap}
+td .meta{display:block;font-size:11px;color:var(--ink-3);font-family:var(--sans);font-weight:400;margin-top:2px}
+td.money{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}
+td.money.neg{color:var(--crit)}
+td.money.pos{color:var(--ok)}
+td.money.zero{color:var(--ink-3)}
+
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2.5px 8px;border-radius:20px;font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.03em;white-space:nowrap}
+.pill.crit{background:var(--crit-bg);color:var(--crit)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.info{background:var(--info-bg);color:var(--info)}
+.pill.mute{background:var(--card-3);color:var(--ink-2)}
+
+/* ---------- expanded detail ---------- */
+tr.detail>td{padding:0;border-bottom:1px solid var(--line);background:var(--card-2)}
+.dwrap{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:16px;align-items:start}
+@media (min-width:920px){.dwrap{grid-template-columns:minmax(300px,380px) minmax(0,1fr)}}
+.dbox{background:var(--card);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.dbox h3{margin:0;padding:9px 13px;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--line);font-weight:500}
+.dbody{padding:11px 13px}
+
+/* waterfall */
+.wf{display:flex;flex-direction:column;gap:0}
+.wf .l{display:flex;justify-content:space-between;gap:14px;padding:3.5px 0;font-family:var(--mono);font-size:12.3px;font-variant-numeric:tabular-nums}
+.wf .l .a{color:var(--ink-2)}
+.wf .l .b{color:var(--ink)}
+.wf .l.out .a,.wf .l.out .b{color:var(--ink-3);text-decoration:line-through}
+.wf .l.out .a{text-decoration:none}
+.wf .l.sub{border-top:1px solid var(--line);margin-top:5px;padding-top:6px}
+.wf .l.key{margin:7px -13px -11px;padding:9px 13px;border-top:1px solid var(--line);background:var(--card-2);font-weight:600}
+.wf .l.key .b{color:var(--ok)}
+.wf .l.key.neg .b{color:var(--crit)}
+.wf .l .x{display:inline-block;width:13px;color:var(--crit);opacity:.7}
+
+/* trace */
+.trace{display:flex;flex-direction:column;gap:1px}
+.trace .t{display:grid;grid-template-columns:16px 130px minmax(0,1fr);gap:9px;align-items:baseline;padding:4px 0;font-size:12.3px;border-bottom:1px solid var(--line)}
+.trace .t:last-child{border-bottom:none}
+.trace .t .m{font-family:var(--mono);font-size:11px}
+.trace .t.pass .m{color:var(--ok)}
+.trace .t.fail .m{color:var(--crit)}
+.trace .t .f{font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+.trace .t .d{color:var(--ink-3);font-size:11.8px;min-width:0;overflow-wrap:anywhere}
+.trace .t.fail .d{color:var(--ink)}
+
+.finding{display:flex;gap:10px;padding:11px 13px;border-radius:8px;margin-top:11px;font-size:12.8px;line-height:1.5}
+.finding.crit{background:var(--crit-bg);color:var(--ink)}
+.finding.warn{background:var(--warn-bg);color:var(--ink)}
+.finding b{display:block;margin-bottom:2px}
+.finding .ic{font-family:var(--mono);font-weight:600;flex:none}
+.finding.crit .ic{color:var(--crit)}
+.finding.warn .ic{color:var(--warn)}
+
+.actions{display:flex;flex-wrap:wrap;gap:8px;padding:11px 16px;border-top:1px solid var(--line);background:var(--card)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:7px;font-size:12.5px;font-weight:500;border:1px solid var(--line-2);background:var(--card);color:var(--ink-2)}
+.btn:hover{background:var(--card-2);color:var(--ink)}
+.btn.p{background:var(--brand);border-color:var(--brand);color:#04220f}
+.btn.p:hover{filter:brightness(1.06);background:var(--brand);color:#04220f}
+
+.note{display:flex;gap:9px;padding:11px 14px;border-radius:9px;background:var(--info-bg);color:var(--ink);font-size:12.6px;line-height:1.55;margin-bottom:18px;border:1px solid color-mix(in srgb,var(--info) 25%,transparent)}
+.note .ic{font-family:var(--mono);font-weight:600;color:var(--info);flex:none}
+
+/* sub-agent statement */
+.split{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:940px){.split{grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr)}}
+.terms{display:flex;flex-direction:column}
+.term{display:flex;justify-content:space-between;gap:14px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.term:last-child{border-bottom:none}
+.term .k{color:var(--ink-2)}
+.term .v{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:right}
+.term .v small{display:block;font-family:var(--sans);font-size:11px;color:var(--ink-3);margin-top:1px}
+
+.drop{border:1.5px dashed var(--line-2);border-radius:10px;padding:22px 18px;text-align:center;background:var(--card-2);margin:14px}
+.drop b{display:block;font-size:13.5px;margin-bottom:3px}
+.drop span{font-size:12.3px;color:var(--ink-3)}
+.drop .fmt{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:11px}
+.drop .fmt i{font-style:normal;font-family:var(--mono);font-size:10.5px;padding:2.5px 8px;border-radius:5px;background:var(--card-3);color:var(--ink-2)}
+
+.hide{display:none!important}
+</style>
+
+<div class="app">
+
+<aside>
+  <div class="brandmark">
+    <span class="dot"><span>114</span></span>
+    <b>Commission Desk</b>
+  </div>
+
+  <div>
+    <p class="who">Viewing as</p>
+    <div class="switch" role="group" aria-label="Portal">
+      <button id="btn-host" aria-pressed="true" onclick="setPortal('host')">Host agency</button>
+      <button id="btn-sub" aria-pressed="false" onclick="setPortal('sub')">Sub-agent</button>
+    </div>
+  </div>
+
+  <nav id="nav-host">
+    <a href="#" aria-current="page">Reconciliation <span class="n" id="nav-var">6</span></a>
+    <a href="#">Tickets <span class="n">7</span></a>
+    <a href="#">Contracts <span class="n">1</span></a>
+    <a href="#">Sub-agents <span class="n">1</span></a>
+    <a href="#">Statements</a>
+  </nav>
+  <nav id="nav-sub" class="hide">
+    <a href="#" aria-current="page">My tickets <span class="n">7</span></a>
+    <a href="#">Check a ticket</a>
+    <a href="#">My agreement</a>
+    <a href="#">Statements</a>
+  </nav>
+
+  <div class="railfoot">
+    IATA 33535983<br>
+    ARC · week 36<br>
+    engine 0.1.0
+  </div>
+</aside>
+
+<main>
+
+<!-- ══════════════════ HOST ══════════════════ -->
+<section id="view-host">
+  <div class="head">
+    <div>
+      <h1>Reconciliation — week ending 5 Sep 2026</h1>
+      <p>Seven documents from the Amadeus feed, priced against the EL AL Agency Commission Letter 2026. Every figure below is computed from the tickets themselves; nothing is estimated.</p>
+    </div>
+    <div class="period">
+      <span class="k">ARC files</span>
+      <span class="v">2026-W36</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="ic">!</span>
+    <div><b style="display:inline">Filing window closes in 2 days.</b>
+    Clause 8 of the EL AL letter allows commission to be claimed <em>at the time of ticketing only</em>, with no retroactive settlement. Anything not corrected before this report is transmitted cannot be recovered.</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <span class="k">Documents priced</span>
+      <span class="v">7</span>
+      <span class="s">5 issues · 2 exchanges</span>
+    </div>
+    <div class="stat">
+      <span class="k">Fare value</span>
+      <span class="v">29,951.75</span>
+      <span class="s">USD, base fare</span>
+    </div>
+    <div class="stat crit">
+      <span class="k">Forfeited — no tour code</span>
+      <span class="v">645.92</span>
+      <span class="s">4 tickets · clause 14</span>
+    </div>
+    <div class="stat warn">
+      <span class="k">Claimed without entitlement</span>
+      <span class="v">196.98</span>
+      <span class="s">2 tickets · ADM exposure</span>
+    </div>
+    <div class="stat ok">
+      <span class="k">Net-fare markup</span>
+      <span class="v">2,475.75</span>
+      <span class="s">1 ticket · not commission</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <header>
+      <h2>Variance queue</h2>
+      <span class="sub">Select a row to see the clause that decided it</span>
+    </header>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket</th><th>Class</th><th>Fare type</th><th>Finding</th>
+            <th class="r">Claimed</th><th class="r">Per contract</th><th class="r">Variance</th>
+          </tr>
+        </thead>
+        <tbody id="queue"></tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button class="btn p">Export claim file</button>
+      <button class="btn">Mark reviewed</button>
+      <button class="btn">Assign to Miriam</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <header>
+      <h2>Contract compliance — EL AL 2026</h2>
+      <span class="sub">Main St Travel · IATA 33535983 · valid 15 Jan – 31 Dec 2026</span>
+    </header>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Clause</th><th>Requirement</th><th>This week</th><th class="r">At stake</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="tkt">§14</td>
+            <td>Tour code <span class="num">0NYZE71545</span> must appear on the ticket
+              <span class="meta">Failure to insert results in loss of commission</span></td>
+            <td><span class="pill crit">0 of 7 present</span></td>
+            <td class="money neg r">645.92</td>
+          </tr>
+          <tr>
+            <td class="tkt">§3</td>
+            <td>Rate follows the ticket RBD per Attachment A
+              <span class="meta">S is filed at 7%; one ticket claimed 8%</span></td>
+            <td><span class="pill warn">1 mismatch</span></td>
+            <td class="money neg r">14.96</td>
+          </tr>
+          <tr>
+            <td class="tkt">§7</td>
+            <td>No commission on travel originating outside the USA and Canada
+              <span class="meta">Two exchanges reprice ex-TLV and ex-ZRH</span></td>
+            <td><span class="pill warn">1 claimed</span></td>
+            <td class="money neg r">77.30</td>
+          </tr>
+          <tr>
+            <td class="tkt">§15</td>
+            <td>Bulk ticketing not permitted; published fare basis and amount required
+              <span class="meta">Four documents are filed BT with the fare suppressed</span></td>
+            <td><span class="pill warn">4 bulk</span></td>
+            <td class="money zero r">—</td>
+          </tr>
+          <tr>
+            <td class="tkt">§12.1</td>
+            <td>Commission calculated per half round-trip on the class booked
+              <span class="meta">Applied; one ticket mixes C outbound with D inbound</span></td>
+            <td><span class="pill ok">applied</span></td>
+            <td class="money zero r">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ SUB-AGENT ══════════════════ -->
+<section id="view-sub" class="hide">
+  <div class="head">
+    <div>
+      <h1>My commission — week ending 5 Sep 2026</h1>
+      <p>What each ticket earns after the host agency's cut, and what it would have earned had the contract been met. Priced from the same contract the host is settled on.</p>
+    </div>
+    <div class="period">
+      <span class="k">Sub-agent</span>
+      <span class="v">SA-4471</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="ic">i</span>
+    <div><b style="display:inline">The split below is an example, not your agreement.</b>
+    Host retention is shown at one point pending your signed sub-agent contract. Every ticket figure is real; every term in the Agreement panel is a placeholder.</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <span class="k">Tickets issued</span>
+      <span class="v">7</span>
+      <span class="s">week 36</span>
+    </div>
+    <div class="stat ok">
+      <span class="k">Earned</span>
+      <span class="v">0.00</span>
+      <span class="s">no ticket qualified</span>
+    </div>
+    <div class="stat crit">
+      <span class="k">Recoverable if corrected</span>
+      <span class="v" id="recoverable">—</span>
+      <span class="s">your residual of 645.92</span>
+    </div>
+    <div class="stat warn">
+      <span class="k">Fees charged to you</span>
+      <span class="v">50.00</span>
+      <span class="s">2 exchanges · example rate</span>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="panel">
+      <header>
+        <h2>Check a ticket</h2>
+        <span class="sub">Before or after issue</span>
+      </header>
+      <div class="drop">
+        <b>Drop an AIR file, or paste a ticket number</b>
+        <span>You get the full waterfall and every clause that applied</span>
+        <div class="fmt">
+          <i>Amadeus AIR</i><i>ARC IAR</i><i>e-ticket PDF</i><i>manual</i>
+        </div>
+      </div>
+      <div style="padding:0 14px 14px">
+        <table style="min-width:0">
+          <thead><tr><th>Recent</th><th class="r">Net to me</th></tr></thead>
+          <tbody id="mine"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <header>
+        <h2>My agreement</h2>
+        <span class="sub">Example terms</span>
+      </header>
+      <div class="terms">
+        <div class="term"><span class="k">Host agency</span><span class="v">Main St Travel<small>IATA 33535983</small></span></div>
+        <div class="term"><span class="k">Revenue share</span><span class="v">host keeps 1.00 pt<small>you take the residual</small></span></div>
+        <div class="term"><span class="k">On EL AL S class</span><span class="v">7% → 6%<small>your rate this week</small></span></div>
+        <div class="term"><span class="k">Exchange fee</span><span class="v">25.00<small>per reissue</small></span></div>
+        <div class="term"><span class="k">Refund fee</span><span class="v">35.00<small>per refund</small></span></div>
+        <div class="term"><span class="k">Merchant fee</span><span class="v">2.50%<small>of ticket total, min 5.00</small></span></div>
+        <div class="term"><span class="k">Nil-commission issuing fee</span><span class="v">10.00<small>domestic only</small></span></div>
+      </div>
+      <div class="actions">
+        <button class="btn">Upload my agreement</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <header>
+      <h2>Ticket 114-7503646565 — EWR&nbsp;→&nbsp;TLV</h2>
+      <span class="sub">Issued 1 Aug 2026 · LY 0026 · class S · published fare</span>
+    </header>
+    <div class="dwrap">
+      <div class="dbox">
+        <h3>What the contract pays</h3>
+        <div class="dbody">
+          <div class="wf">
+            <div class="l"><span class="a">Base fare</span><span class="b">1,496.00</span></div>
+            <div class="l out"><span class="a"><span class="x">×</span>AP</span><span class="b">4.00</span></div>
+            <div class="l out"><span class="a"><span class="x">×</span>AY</span><span class="b">5.60</span></div>
+            <div class="l out"><span class="a"><span class="x">×</span>US</span><span class="b">23.40</span></div>
+            <div class="l out"><span class="a"><span class="x">×</span>XF</span><span class="b">4.50</span></div>
+            <div class="l sub"><span class="a">Ticket total</span><span class="b">1,533.50</span></div>
+            <div class="l sub"><span class="a">Commissionable basis</span><span class="b">1,496.00</span></div>
+            <div class="l"><span class="a">Attachment A · S at 7%</span><span class="b">104.72</span></div>
+            <div class="l"><span class="a">Clause 14 · no tour code</span><span class="b">−104.72</span></div>
+            <div class="l sub"><span class="a">Host earns from EL AL</span><span class="b">0.00</span></div>
+            <div class="l"><span class="a">My share · 6 of 7 points</span><span class="b">0.00</span></div>
+            <div class="l key neg"><span class="a">NET TO ME</span><span class="b">0.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="dbox">
+        <h3>Why — every condition tested</h3>
+        <div class="dbody">
+          <div class="trace">
+            <div class="t pass"><span class="m">✓</span><span class="f">issueDate</span><span class="d">2026-08-01 inside 15 Jan – 31 Dec 2026</span></div>
+            <div class="t pass"><span class="m">✓</span><span class="f">validatingCarrier</span><span class="d">LY</span></div>
+            <div class="t pass"><span class="m">✓</span><span class="f">marketingCarrier</span><span class="d">LY — clause 4 satisfied</span></div>
+            <div class="t pass"><span class="m">✓</span><span class="f">originIn</span><span class="d">EWR (US) — originates in the territory</span></div>
+            <div class="t pass"><span class="m">✓</span><span class="f">posCountry</span><span class="d">US</span></div>
+            <div class="t pass"><span class="m">✓</span><span class="f">fareType</span><span class="d">published — not bulk, not private</span></div>
+            <div class="t pass"><span class="m">✓</span><span class="f">rbd</span><span class="d">S — listed in Attachment A at 7.00%</span></div>
+            <div class="t fail"><span class="m">✗</span><span class="f">tourCode</span><span class="d">absent — clause 14 requires 0NYZE71545, and its absence forfeits the commission</span></div>
+          </div>
+          <div class="finding crit">
+            <span class="ic">1</span>
+            <div><b>104.72 forfeited to a missing tour code</b>
+            This ticket qualified on every other count. Clause 8 means it cannot be reclaimed once the ARC report is filed.</div>
+          </div>
+          <div class="finding warn">
+            <span class="ic">2</span>
+            <div><b>8% was claimed where Attachment A files S at 7%</b>
+            119.68 claimed against 104.72 entitled — 14.96 over, exactly one point of the fare. Clause 15 exposes inaccurate ticketing to a debit memo.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn p">Ask host to correct</button>
+      <button class="btn">Open AIR record</button>
+      <button class="btn">Download waterfall</button>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+"use strict";
+
+/* Every ticket below was parsed from an AIR file the agency supplied, and
+   priced by the engine against the EL AL 2026 letter. The `would` figure is
+   what the same ticket earns once the contract is met. */
+const TICKETS = [
+  { rate:7, tkt:"114-7503646565", rbd:"S", route:"EWR–TLV", doc:"TKT", type:"published",
+    base:"1,496.00", claimed:"119.68", claimedRate:"8%", contract:"0.00", would:104.72,
+    sev:"crit", code:"RATE + NO TOUR CODE", clause:"§14, §3",
+    findings:[
+      ["crit","104.72 forfeited to a missing tour code","Qualified on every other count: US origin, marketed by LY, class S listed in Attachment A."],
+      ["warn","8% claimed where Attachment A files S at 7%","14.96 over — exactly one point of the fare. Clause 15 exposes this to a debit memo."]
+    ],
+    trace:[[1,"originIn","EWR (US) — in the territory"],[1,"rbd","S — Attachment A, 7.00%"],
+           [1,"fareType","published"],[0,"tourCode","absent — clause 14 forfeits the commission"]] },
+
+  { rate:5, tkt:"114-7507450808", rbd:"Y/Y", route:"JFK–TLV–JFK", doc:"TKT", type:"net (BT)",
+    base:"3,608.00", claimed:"0.00", claimedRate:"amt", contract:"0.00", would:180.40,
+    sev:"crit", code:"NO TOUR CODE", clause:"§14",
+    findings:[["crit","180.40 forfeited","Y is filed at 5% and the journey originates in the USA. No tour code is present."]],
+    trace:[[1,"originIn","JFK (US)"],[1,"rbd","Y — Attachment A, 5.00%"],
+           [0,"fareType","net — filed BT, clause 15 forbids bulk ticketing"],
+           [0,"tourCode","absent — clause 14"]] },
+
+  { rate:5, tkt:"114-7507450809", rbd:"Y/Y", route:"JFK–TLV–JFK", doc:"TKT", type:"net (BT)",
+    base:"3,608.00", claimed:"0.00", claimedRate:"amt", contract:"0.00", would:180.40,
+    sev:"crit", code:"NO TOUR CODE", clause:"§14",
+    findings:[["crit","180.40 forfeited","Second of three children on one booking, priced identically."]],
+    trace:[[1,"originIn","JFK (US)"],[1,"rbd","Y — 5.00%"],[0,"tourCode","absent — clause 14"]] },
+
+  { rate:5, tkt:"114-7507450810", rbd:"Y/Y", route:"JFK–TLV–JFK", doc:"TKT", type:"net (BT)",
+    base:"3,608.00", claimed:"0.00", claimedRate:"amt", contract:"0.00", would:180.40,
+    sev:"crit", code:"NO TOUR CODE", clause:"§14",
+    findings:[["crit","180.40 forfeited","Third of three. This record arrived as part 2 of 3 — passengers 1 and 5 are in the sibling files."]],
+    trace:[[1,"originIn","JFK (US)"],[1,"rbd","Y — 5.00%"],[0,"tourCode","absent — clause 14"]] },
+
+  { rate:6, tkt:"114-7508318520", rbd:"C", route:"ZRH–TLV", doc:"EXCH", type:"published",
+    base:"1,546.00", claimed:"77.30", claimedRate:"5%", contract:"0.00", would:0,
+    sev:"warn", code:"NOT ENTITLED", clause:"§7",
+    findings:[["warn","77.30 claimed on a journey originating in Zurich","Clause 7 pays nothing on travel originating outside the USA and Canada. Reissue of 114-7502333711, which had already taken 100.00."]],
+    trace:[[0,"originIn","ZRH (CH) — outside the territory"],[1,"validatingCarrier","LY"],
+           [1,"rbd","C — Attachment A, 6.00%"]] },
+
+  { rate:null, tkt:"114-7508318625", rbd:"Q", route:"TLV–EWR", doc:"EXCH", type:"net (BT)",
+    base:"3,707.00", claimed:"0.00", claimedRate:"amt", contract:"0.00", would:0,
+    sev:"ok", code:"CORRECTLY NIL", clause:"§7",
+    findings:[["warn","Nothing claimed, and nothing was due","Originates Tel Aviv. The file and the contract agree — no action."]],
+    trace:[[0,"originIn","TLV (IL) — outside the territory"],[1,"validatingCarrier","LY"]] },
+
+  { rate:null, tkt:"114-7507682876", rbd:"C/D", route:"JFK–TLV–EWR", doc:"TKT", type:"net (BT)",
+    base:"12,378.75", claimed:"2,475.75", claimedRate:"markup", contract:"0.00", would:0,
+    sev:"ok", code:"MARKUP, NOT COMMISSION", clause:"§13(b)",
+    findings:[["warn","Revenue here is markup of 2,475.75, not commission","Sold at 12,378.75 against a net of 9,903.00. Clause 13(b) excludes classified private fares from commission, so no claim is due and none was made."]],
+    trace:[[1,"originIn","JFK (US)"],[0,"fareType","net — sold on a bulk fare"],
+           [0,"tourCode","absent"]] }
+];
+
+/* Example terms: the host retains one point, the sub-agent takes the residual.
+   That is 6 of 7 on an S-class ticket and 4 of 5 on a Y — NOT a flat fraction,
+   which is exactly the distinction the engine's "residual" share mode exists
+   for. Derived per ticket from the rate Attachment A files for its class. */
+const HOST_RETAINS_POINTS = 1;
+function subShare(t) {
+  if (!t.rate || t.rate <= HOST_RETAINS_POINTS) return 0;
+  return t.would * (t.rate - HOST_RETAINS_POINTS) / t.rate;
+}
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) =>
+  ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+
+const money = (n) =>
+  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function varianceCell(t) {
+  const claimed = Number(t.claimed.replace(/,/g, ""));
+  if (t.claimedRate === "markup") return ['<span class="pill mute">n/a</span>', ""];
+  if (claimed > 0) return [`+${money(claimed)}`, "neg"];
+  if (t.would > 0) return [`−${money(t.would)}`, "neg"];
+  return ["0.00", "zero"];
+}
+
+function renderQueue() {
+  const rows = TICKETS.map((t, i) => {
+    const [vtext, vclass] = varianceCell(t);
+    const pill = t.sev === "crit" ? "crit" : t.sev === "warn" ? "warn" : "ok";
+    return `
+      <tr class="row sev-${t.sev}" onclick="toggle(${i})" tabindex="0"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggle(${i})}">
+        <td class="tkt">${esc(t.tkt)}<span class="meta">${esc(t.route)} · ${esc(t.doc)}</span></td>
+        <td class="num" style="font-size:12.5px">${esc(t.rbd)}</td>
+        <td><span class="pill mute">${esc(t.type)}</span></td>
+        <td><span class="pill ${pill}">${esc(t.code)}</span><span class="meta">${esc(t.clause)}</span></td>
+        <td class="money r">${esc(t.claimed)}<span class="meta">${esc(t.claimedRate)}</span></td>
+        <td class="money r zero">${esc(t.contract)}</td>
+        <td class="money r ${vclass}">${vtext}</td>
+      </tr>
+      <tr class="detail hide" id="d${i}"><td colspan="7">${detail(t)}</td></tr>`;
+  });
+  document.getElementById("queue").innerHTML = rows.join("");
+}
+
+function detail(t) {
+  const trace = t.trace.map(([ok, field, desc]) => `
+    <div class="t ${ok ? "pass" : "fail"}">
+      <span class="m">${ok ? "✓" : "✗"}</span>
+      <span class="f">${esc(field)}</span>
+      <span class="d">${esc(desc)}</span>
+    </div>`).join("");
+
+  const findings = t.findings.map(([sev, head, body]) => `
+    <div class="finding ${sev}">
+      <span class="ic">${sev === "crit" ? "!" : "i"}</span>
+      <div><b>${esc(head)}</b>${esc(body)}</div>
+    </div>`).join("");
+
+  const share = subShare(t);
+
+  return `
+    <div class="dwrap">
+      <div class="dbox">
+        <h3>If the contract were met</h3>
+        <div class="dbody">
+          <div class="wf">
+            <div class="l"><span class="a">Commissionable basis</span><span class="b">${esc(t.base)}</span></div>
+            <div class="l"><span class="a">Per Attachment A</span><span class="b">${money(t.would)}</span></div>
+            <div class="l sub"><span class="a">Sub-agent share</span><span class="b">${money(share)}</span></div>
+            <div class="l"><span class="a">Host retains</span><span class="b">${money(t.would - share)}</span></div>
+            <div class="l key ${t.would > 0 ? "neg" : ""}">
+              <span class="a">ACTUALLY EARNED</span><span class="b">${esc(t.contract)}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="dbox">
+        <h3>Why — conditions tested against the letter</h3>
+        <div class="dbody">
+          <div class="trace">${trace}</div>
+          ${findings}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderMine() {
+  document.getElementById("mine").innerHTML = TICKETS.slice(0, 5).map((t) => `
+    <tr>
+      <td class="tkt">${esc(t.tkt)}<span class="meta">${esc(t.route)} · ${esc(t.rbd)}</span></td>
+      <td class="money r ${t.would > 0 ? "neg" : "zero"}">0.00${
+        t.would > 0
+          ? `<span class="meta">was ${money(subShare(t))}</span>`
+          : ""}</td>
+    </tr>`).join("");
+}
+
+let open = -1;
+function toggle(i) {
+  const row = document.getElementById("d" + i);
+  if (open === i) { row.classList.add("hide"); open = -1; return; }
+  if (open >= 0) document.getElementById("d" + open).classList.add("hide");
+  row.classList.remove("hide");
+  open = i;
+}
+
+function setPortal(which) {
+  const host = which === "host";
+  document.getElementById("view-host").classList.toggle("hide", !host);
+  document.getElementById("view-sub").classList.toggle("hide", host);
+  document.getElementById("nav-host").classList.toggle("hide", !host);
+  document.getElementById("nav-sub").classList.toggle("hide", host);
+  document.getElementById("btn-host").setAttribute("aria-pressed", String(host));
+  document.getElementById("btn-sub").setAttribute("aria-pressed", String(!host));
+  try { localStorage.setItem("cd.portal", which); } catch (e) { /* private mode */ }
+}
+
+renderQueue();
+renderMine();
+document.getElementById("recoverable").textContent =
+  money(TICKETS.reduce((a, t) => a + subShare(t), 0));
+toggle(0);                                  /* open at rest, not empty */
+try {
+  const saved = localStorage.getItem("cd.portal");
+  if (saved === "sub") setPortal("sub");
+} catch (e) { /* storage unavailable */ }
+</script>
