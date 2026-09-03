@@ -4,11 +4,15 @@ import { ChevronRight, Download, Upload } from 'lucide-react';
 import type { Finding } from '@commission/cli';
 import { toCsv } from '../../../packages/cli/src/report';
 import { Amount, Note, Panel, Pill, StatCard, type Tone } from '../components/primitives';
+import { FolderSource } from '../components/FolderSource';
 import { TraceView, WaterfallView } from '../components/Waterfall';
 import {
   BUNDLED_FILES, detectConsolidators, money, priceFiles, type LoadedFile,
 } from '../data';
 import { useWorkspace, WorkspaceBar } from '../workspace';
+
+/** The table is a work queue, not an archive; the export is the archive. */
+const ROWS_PER_PAGE = 100;
 
 const TONE_OF: Record<string, Tone> = {
   critical: 'critical', warning: 'warning', ok: 'ok',
@@ -18,16 +22,21 @@ export default function ReconciliationPage() {
   const { consolidator } = useWorkspace();
   const [files, setFiles] = useState<LoadedFile[]>(BUNDLED_FILES);
   const [open, setOpen] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+  const [limit, setLimit] = useState(ROWS_PER_PAGE);
 
   const batch = useMemo(() => priceFiles(files), [files]);
   const detected = useMemo(() => detectConsolidators(batch.passengers), [batch]);
   const { result } = batch;
   const t = result.totals;
 
-  const rows = showAll
+  // A week can be several thousand documents. Findings are already ranked by
+  // severity and then by money, so the head of the list is the work — but the
+  // totals above are always over the whole batch, never over what is displayed.
+  const matching = showAll
     ? result.findings
     : result.findings.filter((f) => f.severity !== 'ok');
+  const rows = matching.slice(0, limit);
 
   async function onDrop(list: FileList | null) {
     if (!list) return;
@@ -60,11 +69,15 @@ export default function ReconciliationPage() {
           </p>
         </div>
         <label className="btn-secondary cursor-pointer">
-          <Upload size={14} /> Load AIR files
-          <input type="file" multiple className="hidden" accept=".air,.txt,text/plain"
+          <Upload size={14} /> Individual files
+          {/* No extension filter: a Server Pro capture writes .M07. */}
+          <input type="file" multiple className="hidden"
                  onChange={(e) => void onDrop(e.target.files)} />
         </label>
       </div>
+
+      <FolderSource count={files.filter((f) => f.bundled).length}
+                    onFiles={(loaded) => setFiles(loaded)} />
 
       <Note tone="warning" title="Clause 8 — commission may be claimed at ticketing only.">
         No retroactive settlement is made for commission not taken at the time of
@@ -100,11 +113,14 @@ export default function ReconciliationPage() {
 
       <Panel
         title="Variance queue"
-        subtitle="Select a row for the clause that decided it"
+        subtitle={matching.length > rows.length
+          ? `Ranked by what is at stake — showing ${rows.length.toLocaleString()} of ${matching.length.toLocaleString()}`
+          : 'Select a row for the clause that decided it'}
         flush
         actions={
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowAll((v) => !v)} className="btn-secondary">
+            <button onClick={() => { setShowAll((v) => !v); setLimit(ROWS_PER_PAGE); }}
+                    className="btn-secondary">
               {showAll ? 'Only what needs attention' : 'Show every document'}
             </button>
             <button onClick={exportCsv} className="btn-primary"><Download size={14} /> CSV</button>
@@ -132,6 +148,18 @@ export default function ReconciliationPage() {
               {rows.length === 0 && (
                 <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400 text-[13px]">
                   Nothing needs attention in this batch.
+                </td></tr>
+              )}
+              {matching.length > rows.length && (
+                <tr><td colSpan={8} className="px-4 py-4 text-center">
+                  <button className="btn-secondary"
+                          onClick={() => setLimit((n) => n + ROWS_PER_PAGE)}>
+                    Show {Math.min(ROWS_PER_PAGE, matching.length - rows.length).toLocaleString()} more
+                  </button>
+                  <span className="block text-[12px] text-slate-400 mt-2">
+                    {(matching.length - rows.length).toLocaleString()} further row(s) — the CSV export
+                    carries every document
+                  </span>
                 </td></tr>
               )}
             </tbody>

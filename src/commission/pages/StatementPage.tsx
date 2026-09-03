@@ -71,7 +71,7 @@ export default function StatementPage() {
         <div className="flex gap-2">
           <label className="btn-secondary cursor-pointer">
             <Upload size={14} /> AIR files ({batch.passengers.length})
-            <input type="file" multiple className="hidden" accept=".air,.txt,text/plain"
+            <input type="file" multiple className="hidden"
                    onChange={(e) => void loadAir(e.target.files)} />
           </label>
           <label className="btn-primary cursor-pointer">

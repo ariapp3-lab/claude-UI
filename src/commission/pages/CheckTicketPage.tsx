@@ -85,7 +85,7 @@ export default function CheckTicketPage() {
         </div>
         <label className="btn-secondary cursor-pointer">
           <Upload size={14} /> Load AIR files
-          <input type="file" multiple className="hidden" accept=".air,.txt,text/plain"
+          <input type="file" multiple className="hidden"
                  onChange={(e) => void onDrop(e.target.files)} />
         </label>
       </div>
