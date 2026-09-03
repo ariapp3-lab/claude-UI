@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import clsx from 'clsx';
-import { Calculator, FileSearch, Receipt, Scale } from 'lucide-react';
+import { Calculator, FileSearch, Receipt, Scale, Ticket } from 'lucide-react';
 import ReconciliationPage from '../commission/pages/ReconciliationPage';
 import CheckTicketPage from '../commission/pages/CheckTicketPage';
 import StatementPage from '../commission/pages/StatementPage';
+import TicketsPage from '../commission/pages/TicketsPage';
 import ContractPage from '../commission/pages/ContractPage';
 import { WorkspaceProvider } from '../commission/workspace';
 
@@ -20,6 +21,7 @@ import { WorkspaceProvider } from '../commission/workspace';
  */
 const PAGES = [
   { id: 'reconciliation', label: 'Reconciliation', icon: Calculator,  el: <ReconciliationPage /> },
+  { id: 'tickets',        label: 'Tickets',        icon: Ticket,      el: <TicketsPage /> },
   { id: 'statements',     label: 'Statements',     icon: Receipt,     el: <StatementPage /> },
   { id: 'ticket',         label: 'Check a ticket', icon: FileSearch,  el: <CheckTicketPage /> },
   { id: 'contract',       label: 'Contracts',      icon: Scale,       el: <ContractPage /> },

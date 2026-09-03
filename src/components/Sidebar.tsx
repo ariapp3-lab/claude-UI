@@ -58,6 +58,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       title: 'COMMISSIONS',
       items: [
         { icon: <Calculator size={16} />,  label: 'Reconciliation' },
+        { icon: <Ticket size={16} />,      label: 'Commission tickets' },
         { icon: <FileSearch size={16} />,  label: 'Check a ticket' },
         { icon: <Receipt size={16} />,     label: 'Statements' },
         { icon: <Scale size={16} />,       label: 'Contract' },

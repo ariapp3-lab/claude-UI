@@ -7,6 +7,7 @@ import ReconciliationPage from './commission/pages/ReconciliationPage';
 import CheckTicketPage from './commission/pages/CheckTicketPage';
 import ContractPage from './commission/pages/ContractPage';
 import StatementPage from './commission/pages/StatementPage';
+import TicketsPage from './commission/pages/TicketsPage';
 import { WorkspaceProvider } from './commission/workspace';
 
 type Page = string;
@@ -18,6 +19,7 @@ export default function App() {
     switch (activePage) {
       case 'Reconciliation':  return <ReconciliationPage />;
       case 'Check a ticket':  return <CheckTicketPage />;
+      case 'Commission tickets': return <TicketsPage />;
       case 'Statements':      return <StatementPage />;
       case 'Contract':        return <ContractPage />;
       case 'Data Pump':       return <DataPumpPage />;

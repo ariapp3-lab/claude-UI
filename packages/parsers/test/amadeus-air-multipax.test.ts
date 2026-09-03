@@ -122,3 +122,24 @@ describe("what the EL AL contract makes of the three", () => {
     expect(withCode.reduce((a, b) => a + b, 0n)).toBe(54120n); // 541.20 across three
   });
 });
+
+describe('passenger names', () => {
+  it('reads a name per passenger, not one for the record', () => {
+    // The sample is redacted, but the shape is the real one: a two-digit
+    // passenger reference, the name surname-first, then a type in brackets.
+    expect(r.tickets.map((t) => t.passengerName)).toEqual([
+      'TESTPAX/ONE', 'TESTPAX/TWO', 'TESTPAX/THREE',
+    ]);
+  });
+
+  it('splits the title off the given name so a name search still matches', () => {
+    // "TESTPAX/ONEMSTR(CHD)" runs the title into the name with no separator.
+    expect(r.tickets[0].passengerTitle).toBe('MSTR');
+    expect(r.tickets[0].passengerName).not.toMatch(/MSTR/);
+  });
+
+  it('does not mistake the passenger type for part of the name', () => {
+    expect(r.tickets.every((t) => !/CHD/.test(t.passengerName ?? ''))).toBe(true);
+    expect(r.tickets.every((t) => t.paxType === 'CHD')).toBe(true);
+  });
+});

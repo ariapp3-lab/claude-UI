@@ -99,6 +99,10 @@ export interface TicketDocument {
   readonly ticketDesignator?: string | null;
   readonly fareType: FareType;
   readonly paxType: PaxType;
+  /** Passenger as the GDS holds it: "COHEN/EDMOUND". Surname first. */
+  readonly passengerName?: string | null;
+  /** MR, MRS, MSTR, MISS, DR — carried separately so a search on the name works. */
+  readonly passengerTitle?: string | null;
 
   /** Commission the agent reported, when the source tells us. */
   readonly reportedCommission?: Money | null;

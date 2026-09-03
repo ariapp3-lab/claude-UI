@@ -423,6 +423,15 @@ export function parseAmadeusAir(text: string): AirParseResult {
     const label = f[1] ?? "";
     const ref = /^(\d{2})/.exec(label)?.[1] ?? String(i + 1).padStart(2, "0");
 
+    // "02FREUND/MICHOELMSTR(CHD)" → FREUND/MICHOEL, title MSTR, a child.
+    // The title runs into the given name as often as it is spaced off it, and
+    // splitting it out is what lets a search on the name find the passenger.
+    const bare = label.replace(/^\d{2}/, "").replace(/\((?:CHD|INF|INFT)\)/i, "").trim();
+    const titleMatch = /[\s]?(MSTR|MISS|MRS|MR|MS|DR|PROF|SIR|LORD|LADY|REV)$/i.exec(bare);
+    const passengerTitle = titleMatch ? titleMatch[1].toUpperCase() : null;
+    const passengerName = (titleMatch ? bare.slice(0, titleMatch.index) : bare).trim() || null;
+    if (!passengerName) warnings.push(`passenger ${ref} has no name on its I- element`);
+
     const tLine = find(/^T-/, block.body);
     const ticketNumber = tLine ? (/^T-E?(\d{3}-?\d{10})/.exec(tLine)?.[1] ?? null) : null;
     if (!ticketNumber) {
@@ -455,6 +464,8 @@ export function parseAmadeusAir(text: string): AirParseResult {
       ticketDesignator,
       fareType,
       paxType,
+      passengerName,
+      passengerTitle,
       reportedCommission: reportedFM?.amount ?? null,
       coupons,
     };
