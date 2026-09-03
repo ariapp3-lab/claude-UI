@@ -139,10 +139,15 @@ export function toCsv(result: BatchResult): string {
 export function toJson(result: BatchResult): string {
   return JSON.stringify(
     {
+      // Totals are a mix now: amounts, counts and a currency code. Formatting
+      // by type rather than by assumption keeps a string out of formatMoney.
       totals: Object.fromEntries(
-        Object.entries(result.totals).map(([k, v]) =>
-          [k, typeof v === "number" ? v : formatMoney(v as Money)]),
+        Object.entries(result.totals).map(([k, v]) => [
+          k,
+          typeof v === "number" || typeof v === "string" ? v : formatMoney(v as Money),
+        ]),
       ),
+      currencies: result.currencies,
       byReason: Object.fromEntries(result.byReason),
       findings: result.findings.map((x) => ({
         ticketNumber: x.ticketNumber, documentType: x.documentType,

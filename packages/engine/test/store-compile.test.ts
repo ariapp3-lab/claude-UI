@@ -10,7 +10,7 @@ import { calculate, formatMoney, parseMoney } from '../src/index.js';
 import type { TicketDocument } from '../src/types.js';
 import {
   seedConfig, compileContract, compileSubAgentRules, carrierRulesFor,
-} from '../../../src/commission/store';
+} from '../contracts/config.js';
 
 const f = formatMoney;
 const usd = (d: string) => parseMoney(d, 'USD');

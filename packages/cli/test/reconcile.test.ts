@@ -123,6 +123,10 @@ describe("exports", () => {
     const json = JSON.parse(toJson(result));
     expect(json.findings).toHaveLength(7);
     expect(json.totals.fareValue).toBe("29951.75");
+    // Counts and the currency code are carried as themselves, not as money.
+    expect(json.totals.currency).toBe("USD");
+    expect(json.totals.documents).toBe(7);
+    expect(json.currencies).toEqual([{ code: "USD", documents: 7 }]);
     for (const x of json.findings) {
       expect(typeof x.claimed).toBe("string");
       expect(x.claimed).toMatch(/^-?\d+\.\d{2}$/);
