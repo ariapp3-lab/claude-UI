@@ -134,6 +134,10 @@ export function compileContract(
     effective: { issuedBetween: { from: contract.issuedFrom, to: contract.issuedTo } },
     source: { document: contract.title, extractedBy: 'human' as const },
   };
+  // Each compiled rule names the condition it enforces. Without it a result
+  // says only that nothing is due, which is the least useful true statement
+  // the system can make.
+  const cite = (clause: string) => ({ ...base.source, clause });
   const rules: Rule[] = [];
 
   if (contract.excludeFareTypes.length > 0) {
@@ -147,6 +151,7 @@ export function compileContract(
         fareType: { in: [...contract.excludeFareTypes] },
       },
       award: { kind: 'nil' },
+      source: cite(`excluded fare types: ${contract.excludeFareTypes.join(', ')}`),
     });
   }
 
@@ -161,6 +166,7 @@ export function compileContract(
         tourCode: { notIn: [contract.requiredTourCode.trim()] },
       },
       award: { kind: 'nil' },
+      source: cite(`tour code ${contract.requiredTourCode.trim()} required`),
     });
   }
 
@@ -175,6 +181,7 @@ export function compileContract(
         originNotIn: [...contract.originIn],
       },
       award: { kind: 'nil' },
+      source: cite(`travel must originate in ${contract.originIn.join(' or ')}`),
     });
   }
 
@@ -199,6 +206,10 @@ export function compileContract(
       basis: contract.includeYq ? ['base_fare', 'yq'] : ['base_fare'],
       rounding: { mode: 'half_up' },
     },
+    source: cite(
+      `commission by booking class, ${contract.includeYq ? 'base fare plus YQ' : 'base fare'}` +
+      `${contract.scope === 'half_rt' ? ', per half round trip' : ''}`,
+    ),
   });
 
   return rules;

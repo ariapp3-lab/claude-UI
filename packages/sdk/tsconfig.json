@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "lib": ["ES2022"], "module": "ESNext",
+    "moduleResolution": "bundler", "strict": true, "skipLibCheck": true,
+    "noEmit": true, "verbatimModuleSyntax": true, "isolatedModules": true,
+    "types": ["node"],
+    "paths": {
+      "@commission/engine": ["../engine/src/index.ts"],
+      "@commission/parsers": ["../parsers/src/index.ts"],
+      "@commission/cli": ["../cli/src/reconcile.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

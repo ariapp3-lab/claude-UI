@@ -1,0 +1,551 @@
+<title>Commission SDK Integration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --paper:#F1F2ED; --surface:#FBFBF8; --surface-2:#E7E9E2; --code-bg:#F6F7F2;
+  --ink:#171B21; --ink-2:#4A5561; --ink-3:#78838F;
+  --rule:#D5D9D0; --rule-strong:#B2B9AD;
+  --navy:#1B3A5C; --navy-ink:#1B3A5C; --navy-soft:#E1E8F0;
+  --credit:#2C6A4E; --credit-soft:#DCE9E0;
+  --flag:#A24E1B; --flag-soft:#F3E2D4;
+  --shadow:0 1px 2px rgba(23,27,33,.05), 0 8px 24px -18px rgba(23,27,33,.25);
+  --serif:"IBM Plex Serif",Georgia,serif;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --paper:#0F1218; --surface:#171B22; --surface-2:#1E242D; --code-bg:#12161C;
+  --ink:#E7EAED; --ink-2:#A5B0BC; --ink-3:#788697;
+  --rule:#282F39; --rule-strong:#3C454F;
+  --navy:#88B6E2; --navy-ink:#C6DCF1; --navy-soft:#16232F;
+  --credit:#66BE93; --credit-soft:#122419;
+  --flag:#E08E55; --flag-soft:#291C12;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.8);
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#0F1218; --surface:#171B22; --surface-2:#1E242D; --code-bg:#12161C;
+  --ink:#E7EAED; --ink-2:#A5B0BC; --ink-3:#788697;
+  --rule:#282F39; --rule-strong:#3C454F;
+  --navy:#88B6E2; --navy-ink:#C6DCF1; --navy-soft:#16232F;
+  --credit:#66BE93; --credit-soft:#122419;
+  --flag:#E08E55; --flag-soft:#291C12;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.8);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+a{color:var(--navy)}
+:focus-visible{outline:2px solid var(--navy);outline-offset:3px;border-radius:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.shell{max-width:1180px;margin:0 auto;padding:0 24px 96px}
+.masthead{border-bottom:2px solid var(--ink);padding:40px 0 22px}
+.docmeta{display:flex;flex-wrap:wrap;gap:8px 28px;font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:20px}
+.docmeta b{color:var(--ink-2);font-weight:500}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,4.4vw,46px);line-height:1.07;letter-spacing:-.015em;margin:0 0 12px;text-wrap:balance;max-width:20ch}
+.standfirst{font-size:17.5px;color:var(--ink-2);max-width:64ch;margin:0;line-height:1.55}
+.tags{display:flex;flex-wrap:wrap;gap:9px;margin-top:22px}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:4px 9px;border:1px solid var(--rule-strong);color:var(--ink-2);background:var(--surface)}
+.tag.on{border-color:var(--navy);color:var(--navy-ink);background:var(--navy-soft)}
+
+.grid{display:grid;grid-template-columns:1fr;gap:0}
+@media (min-width:1020px){.grid{grid-template-columns:206px minmax(0,1fr);gap:52px;align-items:start}}
+nav.toc{display:none}
+@media (min-width:1020px){nav.toc{display:block;position:sticky;top:24px;padding-top:44px;max-height:calc(100vh - 48px);overflow-y:auto}}
+.toc-h{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding-bottom:8px;border-bottom:1px solid var(--rule);margin-bottom:10px}
+.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+.toc a{display:grid;grid-template-columns:24px 1fr;gap:6px;padding:5px 0;text-decoration:none;color:var(--ink-2);font-size:13.5px;line-height:1.32}
+.toc a span{font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+.toc a:hover{color:var(--navy)}
+
+main{padding-top:44px;min-width:0}
+section{padding-bottom:10px;margin-bottom:34px}
+section+section{border-top:1px solid var(--rule);padding-top:34px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--navy);margin:0 0 10px}
+h2{font-family:var(--serif);font-weight:600;font-size:clamp(23px,2.6vw,29px);line-height:1.2;letter-spacing:-.01em;margin:0 0 16px;text-wrap:balance}
+h3{font-weight:600;font-size:16px;margin:30px 0 10px}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:26px 0 8px}
+p{margin:0 0 14px;max-width:68ch}
+ul,ol.spec{margin:0 0 16px;padding-left:20px;max-width:68ch}
+li{margin-bottom:7px}
+li::marker{color:var(--ink-3)}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:1px 5px;border-radius:2px}
+.lede{font-size:17px;color:var(--ink-2);max-width:66ch}
+
+.code{background:var(--code-bg);border:1px solid var(--rule);border-left:3px solid var(--navy);overflow-x:auto;margin:18px 0}
+.code .cap{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:9px 16px 0}
+.code pre{margin:0;padding:10px 16px 16px;font-family:var(--mono);font-size:12.5px;line-height:1.62;color:var(--ink-2);white-space:pre}
+.code pre b{color:var(--navy-ink);font-weight:500}
+.code pre i{color:var(--ink-3);font-style:normal}
+.code pre u{color:var(--credit);text-decoration:none}
+.code pre s{color:var(--flag);text-decoration:none}
+
+.tw{overflow-x:auto;margin:18px 0;border:1px solid var(--rule);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:560px}
+th{text-align:left;font-family:var(--mono);font-weight:500;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);padding:10px 14px;border-bottom:1px solid var(--rule-strong);background:var(--surface-2);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink)}
+td.m,th.m{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px}
+
+.note{border-left:3px solid var(--flag);background:var(--flag-soft);padding:14px 18px;margin:20px 0;max-width:68ch}
+.note.ok{border-left-color:var(--credit);background:var(--credit-soft)}
+.note p{margin:0;font-size:14.5px;color:var(--ink)}
+.note .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--flag);display:block;margin-bottom:5px}
+.note.ok .k{color:var(--credit)}
+
+.steps{counter-reset:step;list-style:none;padding:0;margin:18px 0}
+.steps li{counter-increment:step;display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid var(--rule);margin:0}
+.steps li:last-child{border-bottom:none}
+.steps li::before{content:counter(step);font-family:var(--mono);font-size:11.5px;color:var(--navy-ink);background:var(--navy-soft);border:1px solid var(--rule);width:22px;height:22px;display:grid;place-items:center;margin-top:2px}
+.steps b{display:block;font-weight:600}
+.steps span{font-size:14px;color:var(--ink-2)}
+
+footer{margin-top:56px;padding-top:20px;border-top:2px solid var(--ink);font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:6px 24px}
+</style>
+
+<div class="shell">
+<header class="masthead">
+  <div class="docmeta">
+    <span>Doc <b>CE-002</b></span>
+    <span>SDK <b>0.1.0</b></span>
+    <span>Bundle <b>65 KB · ESM</b></span>
+    <span>Runtime <b>Deno · Node · browser</b></span>
+  </div>
+  <h1>Commission SDK Integration</h1>
+  <p class="standfirst">Hand it an AIR file, get back what the ticket is worth and whether that figure can be written into a field. One function, plain JSON, no I/O, no dependencies — so the same code runs in a Supabase Edge Function, a queue worker, or a browser.</p>
+  <div class="tags">
+    <span class="tag on">priceAirFile</span>
+    <span class="tag on">checkStatement</span>
+    <span class="tag">Edge Function</span>
+    <span class="tag">HTTP server</span>
+    <span class="tag">267 tests</span>
+  </div>
+</header>
+
+<div class="grid">
+<nav class="toc" aria-label="Contents">
+  <div class="toc-h">Contents</div>
+  <ol>
+    <li><a href="#s1"><span>§1</span>How it fits</a></li>
+    <li><a href="#s2"><span>§2</span>How a fare is priced</a></li>
+    <li><a href="#s3"><span>§3</span>The Edge Function</a></li>
+    <li><a href="#s4"><span>§4</span>priceAirFile</a></li>
+    <li><a href="#s5"><span>§5</span>The prefill rule</a></li>
+    <li><a href="#s6"><span>§6</span>checkStatement</a></li>
+    <li><a href="#s7"><span>§7</span>The contract config</a></li>
+    <li><a href="#s8"><span>§8</span>HTTP instead</a></li>
+    <li><a href="#s9"><span>§9</span>Proven and assumed</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="s1">
+  <p class="eyebrow">§1 — Shape</p>
+  <h2>How it fits into a CRM</h2>
+  <p class="lede">The SDK computes and explains. It never stores anything, never calls out, and never decides what your CRM does with the answer.</p>
+
+  <ol class="steps">
+    <li><b>An AIR file lands in your feed.</b><span>Server Pro, a GDS drop, an email attachment — wherever it already arrives.</span></li>
+    <li><b>You call <code>priceAirFile(text, { config })</code>.</b><span>Synchronous, no network, about a millisecond per document.</span></li>
+    <li><b>The IATA number on the ticket selects the contract.</b><span>Not a parameter you pass. A mixed feed sorts itself, and a number you hold no contract for is reported rather than priced against the wrong agency's terms.</span></li>
+    <li><b>You write <code>prefill</code> into your commission field.</b><span>Null whenever the contract did not settle the question — see §5. That check has already happened, so a caller that writes it without thinking is still correct.</span></li>
+    <li><b>The statement arrives; you call <code>checkStatement</code>.</b><span>What was earned comes from the tickets, what was paid from the statement, and the result says only where they differ.</span></li>
+  </ol>
+
+  <div class="code">
+    <div class="cap">the whole integration</div>
+<pre><b>import</b> { priceAirFile } <b>from</b> <u>"./commission-sdk.js"</u>;
+
+<b>const</b> result = priceAirFile(airFileText, { config, subAgentId: <u>"aappel"</u> });
+
+<b>for</b> (<b>const</b> doc <b>of</b> result.documents) {
+  <b>if</b> (doc.prefill !== <b>null</b>) {
+    <i>// safe to write — the contract settled it</i>
+    await db.tickets.update(doc.ticketNumber, { commission: doc.prefill });
+  } <b>else</b> {
+    <i>// doc.explanation says why, in one line, for a person</i>
+    await queue.forReview(doc.ticketNumber, doc.explanation);
+  }
+}</pre>
+  </div>
+</section>
+
+<section id="s2">
+  <p class="eyebrow">§2 — The logic</p>
+  <h2>How a fare is priced</h2>
+  <p>Six steps, in this order. Every one of them can stop the calculation, and when one does the result says which and why.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th class="m">Step</th><th>What happens</th><th>Where it comes from</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="m">1</td>
+          <td><b>Read the document.</b> Ticket number, carrier, issue date, coupons with their booking classes, the fare, and the taxes itemised by code.</td>
+          <td>The AIR record. Taxes come from the <code>KSTB</code>/<code>KFTF</code> breakdown, never the <code>TAX-</code> line — that one aggregates small taxes into <code>XT</code> and a rule naming a tax code cannot see through it.</td>
+        </tr>
+        <tr>
+          <td class="m">2</td>
+          <td><b>Select the contract</b> by the IATA number the ticket was issued under.</td>
+          <td>The office line. A number with no configured contract is reported, not guessed.</td>
+        </tr>
+        <tr>
+          <td class="m">3</td>
+          <td><b>Test every condition</b> the contract's clauses declare: carrier, marketing carrier, issue-date window, where travel originates, tour code, fare type, booking class.</td>
+          <td>Highest priority wins; on a tie, the clause declaring more conditions. A remaining tie is <code>AMBIGUOUS</code> and pays nothing.</td>
+        </tr>
+        <tr>
+          <td class="m">4</td>
+          <td><b>Build the commissionable fare.</b> Base fare, plus <code>YQ</code> only where the contract says so. Government taxes never.</td>
+          <td>The single biggest source of disagreement with a carrier, so the trace records every component and whether it was included.</td>
+        </tr>
+        <tr>
+          <td class="m">5</td>
+          <td><b>Apply the rate</b> for the booking class — once for the ticket, or once per direction where the contract prices per half round trip.</td>
+          <td>Attachment A, or whatever table is configured. A class not in the table earns nothing: a class the airline did not list is not one it agreed to pay on.</td>
+        </tr>
+        <tr>
+          <td class="m">6</td>
+          <td><b>Take the consolidator's retention</b> — a point of the fare — and the sub-agent gets the remainder.</td>
+          <td>The spread is computed by subtraction, so share plus retention always equals the commission exactly.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>What a reissue and a refund do</h3>
+  <p>A reissue carries the fare of the ticket it replaces plus whatever was collected on top, so commissioning the whole new fare pays a second time on every dollar carried over. The commission already recognised on the original — the Amadeus <code>FO</code> element states it — is reversed. A refund reverses the share of the commission matching the fare actually returned, and the cancellation penalty is fare the carrier keeps, so the commission on it stands.</p>
+
+  <div class="note">
+    <span class="k">Never assumed</span>
+    <p>Where a reissue or a refund does not say what the earlier document earned, the result is <code>INCOMPLETE</code> and <code>prefill</code> is null. Assuming zero is exactly what produces a double payment, and it would look like a perfectly ordinary number.</p>
+  </div>
+
+  <h3>The arithmetic itself</h3>
+  <ul>
+    <li><b>No floating point.</b> Every amount is an integer count of minor units. <code>0.07 × 8290</code> is <code>580.2999999999999</code> in JavaScript; this returns <code>580.30</code>.</li>
+    <li><b>Rounding is stated by the contract</b>, applied once, on the magnitude — so a clawback mirrors the entry it reverses to the cent.</li>
+    <li><b>Splits sum back to the whole.</b> A fare divided across two sectors, or a commission split between consolidator and sub-agent, is allocated by largest remainder. Nothing is lost between the halves.</li>
+    <li><b>Currency comes from the document.</b> A EUR ticket is priced in EUR. Amounts in different currencies are never added — a mixed batch totals the majority and says so.</li>
+  </ul>
+</section>
+
+<section id="s3">
+  <p class="eyebrow">§3 — Deployment</p>
+  <h2>A Supabase Edge Function</h2>
+  <p>The SDK builds to one ESM file with no dependencies, so a Deno function imports it directly. Put <code>commission-sdk.js</code> and your <code>contracts.json</code> beside the function and deploy the folder.</p>
+
+  <div class="code">
+    <div class="cap">supabase/functions/price-ticket/index.ts</div>
+<pre><b>import</b> { priceAirFile } <b>from</b> <u>"./commission-sdk.js"</u>;
+<b>import</b> contracts <b>from</b> <u>"./contracts.json"</u> <b>with</b> { type: <u>"json"</u> };
+
+<b>const</b> SUB_AGENT = <u>"aappel"</u>;
+
+Deno.serve(<b>async</b> (req) => {
+  <b>if</b> (req.method !== <u>"POST"</u>) {
+    <b>return</b> Response.json({ error: <u>"POST an AIR file"</u> }, { status: 405 });
+  }
+
+  <b>const</b> airText = <b>await</b> req.text();
+  <b>const</b> result = priceAirFile(airText, { config: contracts, subAgentId: SUB_AGENT });
+
+  <i>// The SDK never throws on a bad file; it answers with ok:false and a reason.</i>
+  <b>return</b> Response.json(result, { status: result.ok ? 200 : 422 });
+});</pre>
+  </div>
+
+  <div class="code">
+    <div class="cap">deploy, then call it</div>
+<pre>supabase functions deploy price-ticket
+
+curl -X POST <u>"$SUPABASE_URL/functions/v1/price-ticket"</u> \
+  -H <u>"Authorization: Bearer $SUPABASE_ANON_KEY"</u> \
+  -H <u>"Content-Type: text/plain"</u> \
+  --data-binary @26123556000.M07</pre>
+  </div>
+
+  <div class="note ok">
+    <span class="k">Why the body is the file</span>
+    <p>An AIR record is text. Posting it raw rather than wrapped in JSON means no escaping, no size surprises from base64, and <code>--data-binary @file</code> works from any language or a shell script. If your feed already holds the record in a column, post the column.</p>
+  </div>
+
+  <h3>Pricing a whole batch</h3>
+  <p>One call per file keeps a bad record from affecting the others, and an Edge Function is cheap enough to call three thousand times. Where you would rather do it in one request, <code>priceAirFiles</code> takes a list and returns one result per file, in order, each with its own <code>ok</code>.</p>
+
+  <div class="code">
+    <div class="cap">a batch, one result per file</div>
+<pre><b>import</b> { priceAirFiles } <b>from</b> <u>"./commission-sdk.js"</u>;
+
+<b>const</b> files = [{ name: <u>"26123556000.M07"</u>, text: <b>await</b> Deno.readTextFile(path) }, <i>…</i>];
+<b>const</b> results = priceAirFiles(files, { config: contracts, subAgentId: SUB_AGENT });
+
+results.filter((r) => !r.ok).forEach((r) => console.warn(r.file, r.error));</pre>
+  </div>
+</section>
+
+<section id="s4">
+  <p class="eyebrow">§4 — Reference</p>
+  <h2><code>priceAirFile(text, options)</code></h2>
+  <p>Returns one result per record and one <code>document</code> per passenger. A five-passenger booking is five documents with five ticket numbers.</p>
+
+  <div class="code">
+    <div class="cap">a real response — EWR–TLV in S, contract met</div>
+<pre>{
+  <b>"ok"</b>: true,
+  <b>"consolidator"</b>: { "id": "mst", "name": "Main St Travel", "iata": "33535983" },
+  <b>"iata"</b>: "33535983",
+  <b>"documents"</b>: [
+    {
+      "ticketNumber":       "114-7503646565",
+      "passengerName":      "COHEN/EDMOUND",
+      "documentType":       "TKT",
+      "issueDate":          "2026-08-01",
+      "route":              "EWR–TLV",
+      "bookingClasses":     "S",
+      "currency":           "USD",
+
+      "baseFare":           "1496.00",
+      "commissionableFare": "1496.00",
+      "carrierCommission":  <u>"104.72"</u>,   <i>// S at 7% — what the consolidator earns</i>
+      "subAgentCommission": <u>"89.76"</u>,    <i>// less their 1 point of the fare</i>
+      "hostSpread":         "14.96",
+
+      <s>"prefill"</s>:            <u>"89.76"</u>,    <i>// ← write this into your field</i>
+      "outcome":            "CALCULATED",
+
+      "claimed":            "119.68",    <i>// what the ticket itself claims</i>
+      "claimedAs":          "percent",   <i>// 8%, against a filed 7% — a variance</i>
+
+      "ruleId":  "ly-2026-RATES",
+      "clause":  "commission by booking class, base fare, per half round trip",
+      "explanation": "104.72 USD due (commission by booking class, …)",
+      "flags": []
+    }
+  ],
+  <b>"warnings"</b>: ["D- gives a ticketing date of 2026-08-01 but the TK element says 2026-08-02"],
+  <b>"error"</b>: null
+}</pre>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th class="m">Field</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="m">prefill</td><td><b>The value to write into a commission field, or null.</b> See §5.</td></tr>
+        <tr><td class="m">outcome</td><td><code>CALCULATED</code> · <code>NIL</code> · <code>NO_RULE</code> · <code>AMBIGUOUS</code> · <code>INCOMPLETE</code> · <code>NO_CONTRACT</code> · <code>ERROR</code></td></tr>
+        <tr><td class="m">carrierCommission</td><td>What the consolidator earns from the carrier.</td></tr>
+        <tr><td class="m">subAgentCommission</td><td>What is left after the retention. Null when priced as the consolidator.</td></tr>
+        <tr><td class="m">claimed / claimedAs</td><td>What the document's own <code>FM</code> element records. <code>"percent"</code> means it was a rate — <code>FM*M*8</code> is eight per cent, not eight dollars.</td></tr>
+        <tr><td class="m">clause</td><td>Which condition decided it, in words. Put this next to the number in your UI.</td></tr>
+        <tr><td class="m">warnings</td><td>What the reader could not resolve. Never fatal, always reported.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Every amount is a decimal string</h4>
+  <p>Not a number. <code>"104.72"</code>, never <code>104.72</code>. A float cannot hold every cent exactly and a <code>bigint</code> does not survive <code>JSON.stringify</code>, so money crosses this boundary as text and your database column stays a decimal. The whole response round-trips through JSON unchanged — a test pins it.</p>
+</section>
+
+<section id="s5">
+  <p class="eyebrow">§5 — The rule that matters</p>
+  <h2>When to trust the number</h2>
+  <p class="lede">A figure your CRM must not use looks exactly like one it should. So the decision is made in the SDK, not left to whoever writes the integration.</p>
+
+  <div class="code">
+    <div class="cap">the only branch your integration needs</div>
+<pre><b>if</b> (doc.prefill !== <b>null</b>) writeCommissionField(doc.prefill);
+<b>else</b>                     sendForReview(doc.explanation);</pre>
+  </div>
+
+  <p><code>prefill</code> carries a value only when the outcome is <code>CALCULATED</code> or <code>NIL</code> — the contract answered, and the answer is either an amount or an explicit nothing. Every other outcome yields null:</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th class="m">Outcome</th><th>prefill</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr><td class="m">CALCULATED</td><td class="m">an amount</td><td>A clause matched and produced a figure.</td></tr>
+        <tr><td class="m">NIL</td><td class="m">"0.00"</td><td>A clause matched and says nothing is due — a positive assertion, not an absence.</td></tr>
+        <tr><td class="m">NO_RULE</td><td class="m">null</td><td>No clause covers this document. Not the same as nil, and not safe to treat as zero.</td></tr>
+        <tr><td class="m">AMBIGUOUS</td><td class="m">null</td><td>Two clauses match equally. Only the contract's owner can say which was meant.</td></tr>
+        <tr><td class="m">INCOMPLETE</td><td class="m">null</td><td>The document is missing something a clause needs — a reissue with no record of what it replaces, an airport not in the geography table.</td></tr>
+        <tr><td class="m">NO_CONTRACT</td><td class="m">null</td><td>No contract is configured for this IATA number.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="k">The distinction that costs money</span>
+    <p><code>NIL</code> and <code>NO_RULE</code> both come to nothing, and treating them alike is how a system quietly loses commission. Nil means the contract was read and pays nothing here. No-rule means nobody has told the software about this business yet — and every ticket like it is unclaimed until someone does.</p>
+  </div>
+
+  <div class="code">
+    <div class="cap">the same ticket, missing its tour code</div>
+<pre>{
+  "carrierCommission": "0.00",
+  "prefill":  <u>"0.00"</u>,
+  "outcome":  <u>"NIL"</u>,
+  "ruleId":   "ly-2026-NO-TOUR-CODE",
+  "clause":   "tour code 0NYZE71545 required",
+  "explanation": "no commission is due (tour code 0NYZE71545 required)"
+}</pre>
+  </div>
+  <p>Zero is the right figure and it is safe to write. The <code>clause</code> is what makes it actionable: this ticket earns nothing <em>because</em> a tour code is absent, and the same message across a week's feed is a ticketing problem worth fixing at the source.</p>
+</section>
+
+<section id="s6">
+  <p class="eyebrow">§6 — Reference</p>
+  <h2><code>checkStatement(csv, files, options)</code></h2>
+  <p>Takes the consolidator's statement and the documents it should cover, and returns the rows where they disagree. Any delimited export works: the reader finds the header under a letterhead, maps columns by their headings, reads accounting notation, and drops a totals row rather than reading it as a ticket.</p>
+
+  <div class="code">
+    <div class="cap">a line paid where nothing was due</div>
+<pre>{
+  <b>"ok"</b>: true,
+  <b>"rows"</b>: [{
+    "ticketNumber": "114-7503646565",
+    "reason":       <s>"PAID_WHERE_NONE_DUE"</s>,
+    "severity":     "warning",
+    "expected":     "0.00",
+    "stated":       "50.00",
+    "variance":     "50.00",
+    "explanation":  "50.00 paid where the contract gives nothing (tour code 0NYZE71545 required)"
+  }],
+  <b>"totals"</b>: {
+    "currency": "USD",
+    "expected": "0.00",
+    "shortPaid": "0.00",
+    "missing": "0.00",
+    "overPaid": "0.00",
+    "unexplainedDeductions": "0.00"
+  }
+}</pre>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th class="m">reason</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="m">AGREES</td><td>Paid exactly what the contract gives.</td></tr>
+        <tr><td class="m">SHORT_PAID</td><td>Paid less. This is the money to claim.</td></tr>
+        <tr><td class="m">NOT_ON_STATEMENT</td><td>Earned, and the statement does not list the ticket at all.</td></tr>
+        <tr><td class="m">PAID_WHERE_NONE_DUE</td><td>Paid on a document the contract gives nothing for.</td></tr>
+        <tr><td class="m">OVER_PAID</td><td>Paid more than the contract allows — likely to be reversed later.</td></tr>
+        <tr><td class="m">NOT_IN_TICKETS</td><td>Paid against a document not in the batch, so it cannot be checked.</td></tr>
+        <tr><td class="m">DEDUCTION</td><td>The share is right, but money was withheld that no configured agreement covers.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="k">Why fees are separate</span>
+    <p>Without a fee schedule there is no way to know whether a deduction is contractual. Folding it into one variance would hide which half is in question — so a line paid exactly right with money withheld reads as <code>DEDUCTION</code>, not as a shortfall. You would otherwise see "35.00 short" and not know whether you were underpaid or correctly charged.</p>
+  </div>
+</section>
+
+<section id="s7">
+  <p class="eyebrow">§7 — Configuration</p>
+  <h2>The contract file</h2>
+  <p>Plain JSON. Keep it beside the function, in a database column, or in your CRM's settings — the SDK only reads what you hand it. <code>seedConfig()</code> returns the EL AL letter already entered, which is the fastest way to see the shape.</p>
+
+  <div class="code">
+    <div class="cap">contracts.json</div>
+<pre>{
+  "version": 1,
+  "consolidators": [{
+    "id": "mst",
+    "name": "Main St Travel",
+    <b>"iata"</b>: "33535983",          <i>// how a ticket finds this contract</i>
+    <b>"retainsPoints"</b>: "1.00",     <i>// of the fare; the sub-agent takes the rest</i>
+    "contracts": [{
+      "id": "ly-2026",
+      "carrier": "LY",
+      "title": "EL AL Agency Commission Letter 2026",
+      "issuedFrom": "2026-01-15",
+      "issuedTo": "2026-12-31",
+      <b>"rates"</b>: { "I":"9.00","D":"9.00","Z":"9.00",
+                  "K":"7.00","V":"7.00","S":"7.00","L":"7.00","H":"7.00","N":"7.00",
+                  "C":"6.00","J":"6.00","Q":"6.00","B":"6.00","P":"6.00",
+                  "W":"5.00","Y":"5.00","M":"5.00",
+                  "G":"3.00","O":"3.00","U":"3.00" },
+      "includeYq": false,                  <i>// does YQ count toward the fare</i>
+      "requiredTourCode": "0NYZE71545",    <i>// absent forfeits the commission</i>
+      "originIn": ["US","CA"],             <i>// travel must originate here</i>
+      "scope": "half_rt",                  <i>// priced per direction</i>
+      "excludeFareTypes": ["group","private","consolidator"],
+      "notes": "",
+      "files": []
+    }]
+  }]
+}</pre>
+  </div>
+
+  <p>Add a consolidator by adding an object with its own <code>iata</code>; add a carrier by adding a contract. A batch containing both sorts itself, because each ticket names the IATA number it was issued under. The same JSON is what the standalone app reads and writes, so a configuration built by clicking in the app can be exported and deployed.</p>
+</section>
+
+<section id="s8">
+  <p class="eyebrow">§8 — Alternative</p>
+  <h2>If your CRM is not JavaScript</h2>
+  <p>A small HTTP server ships with the SDK. No framework, no database, no session — it holds the configuration in memory and answers questions about text it is handed.</p>
+
+  <div class="code">
+    <div class="cap">run it beside your CRM</div>
+<pre>node --import tsx packages/sdk/src/server.ts --config ./contracts.json
+
+<i># POST the file itself</i>
+curl -X POST localhost:8787/price --data-binary @26123556000.M07
+
+<i># check a statement against a batch</i>
+curl -X POST localhost:8787/statement -H <u>"content-type: application/json"</u> \
+  -d '{"statementCsv":"...","files":[{"name":"a.air","text":"..."}]}'
+
+curl localhost:8787/health</pre>
+  </div>
+
+  <div class="note">
+    <span class="k">Before you expose it</span>
+    <p>It binds to <code>127.0.0.1</code> deliberately. It answers questions about commercial contracts and passenger names, so putting it on a public interface is a decision to make on purpose, with authentication in front of it.</p>
+  </div>
+</section>
+
+<section id="s9">
+  <p class="eyebrow">§9 — Honesty</p>
+  <h2>What is proven, and what is still assumed</h2>
+  <p class="lede">You asked to be able to trust this completely. The arithmetic you can. Parts of the contract reading are still a careful reading of a document that does not say.</p>
+
+  <h3>Proven</h3>
+  <ul>
+    <li><b>The arithmetic.</b> 267 tests. Exactness at every scale, rounding modes, splits that sum back to the whole, a batch of four thousand documents reconciling to the cent.</li>
+    <li><b>The parser</b>, against five real AIR records from your own feed — a straight issue, two exchanges, a three-passenger booking and a published-fare reissue. Every trap those files exposed has a regression test: multi-passenger records, waitlisted segments that look like coupons, three dates in one element, <code>FM</code> as a rate rather than an amount, EUR pricing, documents with no coupons at all.</li>
+    <li><b>The contract reading, mechanically.</b> A contract entered through the app prices identically to one written by hand — the same 180.00 on a D-class fare, the same forfeiture with no tour code, the same nil ex-Israel.</li>
+  </ul>
+
+  <h3>Assumed</h3>
+  <ul>
+    <li><b>The commissionable fare.</b> The EL AL letter never states whether commission is on base fare or base plus YQ. Base only is assumed. On a fare with a 386.00 YQ at 9% that is 34.74 a ticket — the largest single number in the system. No EL AL sample carries YQ at all, since the surcharge is filed inside the fare as <code>Q</code>, so it may not arise on this carrier.</li>
+    <li><b>How a half round trip splits the fare.</b> Clause 12.1 prices per direction but does not say how to divide the fare between them. An even split is assumed; a fare-calculation split disagrees on any open jaw.</li>
+    <li><b>Reissues and refunds.</b> The letter is silent. Netting against what the replaced ticket earned is assumed, which is the reading the Amadeus <code>FO</code> element is built to support.</li>
+    <li><b>Whether clause 14 is enforced.</b> Not one of your sample tickets carries the required tour code. If EL AL enforces it, that is real money forfeited every week; if not, the software is understating. One statement from your consolidator settles it.</li>
+  </ul>
+
+  <div class="note ok">
+    <span class="k">How the software behaves about this</span>
+    <p>Every assumption above is a field in the configuration, not a decision buried in code. <code>includeYq</code> is a boolean; the tour code is a text box; the scope is a dropdown. When you learn the answer, you change the setting and every figure moves — no rebuild, no developer.</p>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <span>CE-002 · SDK 0.1.0</span>
+  <span>Commission SDK Integration</span>
+  <span>267 tests · four packages</span>
+</footer>
+</div>

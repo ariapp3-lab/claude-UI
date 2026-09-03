@@ -10,6 +10,9 @@ export default defineConfig({
       "@commission/parsers": fileURLToPath(
         new URL("./packages/parsers/src/index.ts", import.meta.url),
       ),
+      "@commission/cli": fileURLToPath(
+        new URL("./packages/cli/src/reconcile.ts", import.meta.url),
+      ),
     },
   },
 });
