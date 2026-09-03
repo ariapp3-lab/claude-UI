@@ -1,58 +1,57 @@
+"""Build docs/commission-module-spec.pdf — the developer's integration spec.
+
+Run from the repository root:  python3 docs/build-spec-pdf.py
+"""
+
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether
+    KeepTogether, SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
 )
 
-INK    = colors.HexColor("#14181d")
-MUTED  = colors.HexColor("#5b6672")
-RULE   = colors.HexColor("#d4dae0")
+INK = colors.HexColor("#14181d")
+MUTED = colors.HexColor("#5b6672")
+RULE = colors.HexColor("#d4dae0")
 ACCENT = colors.HexColor("#0f5c4a")
-BAND   = colors.HexColor("#eef2f4")
-WARN   = colors.HexColor("#8a4b12")
+BAND = colors.HexColor("#eef2f4")
+WARN = colors.HexColor("#8a4b12")
 
 ss = getSampleStyleSheet()
+
 
 def S(name, **kw):
     return ParagraphStyle(name, parent=ss["Normal"], **kw)
 
-Title   = S("T", fontName="Helvetica-Bold", fontSize=22, leading=26, textColor=INK, spaceAfter=4)
-Sub     = S("Sub", fontName="Helvetica", fontSize=10.5, leading=15, textColor=MUTED, spaceAfter=2)
-H1      = S("H1", fontName="Helvetica-Bold", fontSize=13, leading=16, textColor=ACCENT,
-            spaceBefore=17, spaceAfter=7)
-H2      = S("H2", fontName="Helvetica-Bold", fontSize=10.5, leading=13, textColor=INK,
-            spaceBefore=11, spaceAfter=4)
-Body    = S("B", fontName="Helvetica", fontSize=9.6, leading=14.2, textColor=INK,
-            spaceAfter=7, alignment=TA_LEFT)
-Small   = S("S", fontName="Helvetica", fontSize=8.6, leading=12.4, textColor=MUTED, spaceAfter=6)
-Mono    = S("M", fontName="Courier", fontSize=8.4, leading=12.4, textColor=INK)
-MonoB   = S("MB", fontName="Courier-Bold", fontSize=8.4, leading=12.4, textColor=INK)
-Cell    = S("C", fontName="Helvetica", fontSize=8.5, leading=11.6, textColor=INK)
-CellB   = S("CB", fontName="Helvetica-Bold", fontSize=8.5, leading=11.6, textColor=INK)
-CellM   = S("CM", fontName="Courier", fontSize=8.1, leading=11.6, textColor=INK)
-Head    = S("HD", fontName="Helvetica-Bold", fontSize=8.3, leading=11, textColor=colors.white)
 
-def table(rows, widths, head=True, zebra=True):
-    data = []
-    for i, r in enumerate(rows):
-        out = []
-        for c in r:
-            if isinstance(c, Paragraph):
-                out.append(c)
-            else:
-                st = Head if (head and i == 0) else Cell
-                out.append(Paragraph(str(c), st))
-        data.append(out)
+Title = S("T", fontName="Helvetica-Bold", fontSize=21, leading=25, textColor=INK, spaceAfter=4)
+Sub = S("Sb", fontName="Helvetica", fontSize=10.5, leading=15, textColor=MUTED, spaceAfter=2)
+H1 = S("H1", fontName="Helvetica-Bold", fontSize=13, leading=16, textColor=ACCENT,
+       spaceBefore=13, spaceAfter=6)
+H2 = S("H2", fontName="Helvetica-Bold", fontSize=10.5, leading=13, textColor=INK,
+       spaceBefore=11, spaceAfter=4)
+Body = S("B", fontName="Helvetica", fontSize=9.6, leading=14.2, textColor=INK,
+         spaceAfter=7, alignment=TA_LEFT)
+Small = S("S", fontName="Helvetica", fontSize=8.6, leading=12.4, textColor=MUTED, spaceAfter=6)
+Mono = S("M", fontName="Courier", fontSize=8.4, leading=12.4, textColor=INK)
+Cell = S("C", fontName="Helvetica", fontSize=8.5, leading=11.6, textColor=INK)
+Head = S("HD", fontName="Helvetica-Bold", fontSize=8.3, leading=11, textColor=colors.white)
+
+
+def table(rows, widths, head=True, zebra=True, gap=8):
+    """A table, plus trailing space so the next paragraph never abuts it."""
+    data = [
+        [c if isinstance(c, Paragraph) else Paragraph(str(c), Head if (head and i == 0) else Cell)
+         for c in r]
+        for i, r in enumerate(rows)
+    ]
     t = Table(data, colWidths=widths, repeatRows=1 if head else 0, hAlign="LEFT")
     cmds = [
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("LEFTPADDING", (0, 0), (-1, -1), 7),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+        ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 7), ("RIGHTPADDING", (0, 0), (-1, -1), 7),
         ("LINEBELOW", (0, 0), (-1, -2), 0.4, RULE),
     ]
     if head:
@@ -64,401 +63,421 @@ def table(rows, widths, head=True, zebra=True):
             if (i - start) % 2 == 1:
                 cmds.append(("BACKGROUND", (0, i), (-1, i), BAND))
     t.setStyle(TableStyle(cmds))
-    return t
+    return [t, Spacer(1, gap)]
 
-def code(lines):
+
+def code(lines, gap=10):
     body = [[Paragraph(l.replace(" ", "&nbsp;") or "&nbsp;", Mono)] for l in lines]
     t = Table(body, colWidths=[6.9 * inch], hAlign="LEFT")
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f6f8f9")),
         ("BOX", (0, 0), (-1, -1), 0.5, RULE),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 1.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]))
-    return t
+    return [t, Spacer(1, gap)]
 
-def note(text):
-    t = Table([[Paragraph(text, S("N", fontName="Helvetica", fontSize=8.8, leading=12.8,
-                                  textColor=WARN))]], colWidths=[6.9 * inch], hAlign="LEFT")
+
+def note(text, gap=10):
+    p = Paragraph(text, S("N", fontName="Helvetica", fontSize=8.8, leading=12.8, textColor=WARN))
+    t = Table([[p]], colWidths=[6.9 * inch], hAlign="LEFT")
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fdf5ec")),
         ("LINEBEFORE", (0, 0), (0, -1), 2.2, colors.HexColor("#c98432")),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-        ("TOPPADDING", (0, 0), (-1, -1), 7),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10), ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
     ]))
-    return t
+    return [t, Spacer(1, gap)]
+
 
 def footer(canvas, doc):
     canvas.saveState()
-    canvas.setStrokeColor(RULE); canvas.setLineWidth(0.4)
+    canvas.setStrokeColor(RULE)
+    canvas.setLineWidth(0.4)
     canvas.line(0.85 * inch, 0.62 * inch, LETTER[0] - 0.85 * inch, 0.62 * inch)
-    canvas.setFont("Helvetica", 7.6); canvas.setFillColor(MUTED)
+    canvas.setFont("Helvetica", 7.6)
+    canvas.setFillColor(MUTED)
     canvas.drawString(0.85 * inch, 0.45 * inch,
-                      "Commission & Consolidator Payouts — module specification")
+                      "Commission & Consolidator Payouts - module specification")
     canvas.drawRightString(LETTER[0] - 0.85 * inch, 0.45 * inch, "Page %d" % doc.page)
     canvas.restoreState()
 
-E = lambda h: Spacer(1, h)
+
+P = lambda t, st=Body: [Paragraph(t, st)]
 F = []
 
-# ---------------------------------------------------------------- cover
-F += [
-    E(6),
-    Paragraph("Commission &amp; Consolidator Payouts", Title),
-    Paragraph("Module specification for CRM integration", Sub),
-    Paragraph("A. Appel and Co · sub-agent under Main St. Travel (IATA 33535983)", Small),
-    E(10),
-]
+# --------------------------------------------------------------------- cover
+F += [Spacer(1, 6)]
+F += P("Commission &amp; Consolidator Payouts", Title)
+F += P("Module specification for CRM integration", Sub)
+F += P("A. Appel and Co - sub-agent under Main St. Travel (IATA 33535983)", Small)
+F += [Spacer(1, 10)]
 
-F += [Paragraph(
-    "This module answers one question automatically, on every ticket: "
-    "<b>how much commission is due, and to whom.</b> It reads the ticket, finds the contract "
-    "that governs it, computes the figure, and pre-fills the commission field. Once a week the "
-    "consolidator statement is uploaded and the module reconciles what was actually paid against "
-    "what was owed, flagging every difference.", Body)]
+F += P(
+    "This module answers one question on every ticket: <b>how much will the host agency's "
+    "cheque be, and is it right.</b> It reads the ticket, finds the contract that governs it, "
+    "computes the figure, and pre-fills the commission field. Once a week the host's statement "
+    "is uploaded and the module reconciles what was actually paid against what was owed.")
 
-F += [Paragraph(
-    "It is deliberately built as a <b>pure function</b>: text in, JSON out. No database calls, no "
-    "clock, no network. That is what lets the same code run inside the CRM, in a queue worker, in "
-    "an Edge Function, and in tests — and it is why the same ticket always produces the same "
-    "number.", Body)]
+F += P(
+    "It is built as a <b>pure function</b>: text in, JSON out. No database calls, no clock, no "
+    "network. The same ticket always produces the same number, and the same code runs inside "
+    "the CRM, in a queue worker, in an Edge Function, and in tests.")
 
-# ---------------------------------------------------------------- 1
-F += [Paragraph("1 · The flow", H1)]
-# two columns, pipes locked to fixed positions so nothing drifts
-L, Rc = 10, 46
-def _row(left="", right=""):
-    return (" " * L + left).ljust(Rc) + right
-_flow = [
-    _row("AIR file arrives", "Weekly statement arrives").replace(" " * L + "AIR", " " * (L - 3) + "AIR"),
-    _row("|", "|"),
-    _row("v", "v"),
-    _row("parse ticket", "parse statement"),
-    _row("|", "|"),
-    _row("|  read IATA from ticket", "|"),
-    _row("|", "|"),
-    _row("+-- no contract --> FALLBACK", "|"),
-    _row("|      (commission left empty)", "|"),
-    _row("v", "v"),
-    (" " * L + "calculate").ljust(24) + "-" * (Rc - 24 - 2) + "> RECONCILE",
-    _row("|", "|"),
-    _row("v", "v"),
-    _row("pre-fill commission", "flag every difference"),
-    _row("", "|"),
-    _row("", "v"),
-    _row("", "export .xlsx for review"),
-]
-F += [code(_flow)]
+F += P("Scope for the first build", H1)
+F += P(
+    "<b>EL AL (LY) under Main St. Travel only.</b> That is where the volume is, and one airline "
+    "under one host is enough to prove the whole path end to end. Everything below is designed "
+    "to take more hosts and more airlines without a rewrite - the data model already keys on "
+    "them - but do not build ten before one works.")
 
-# ---------------------------------------------------------------- 2
-F += [Paragraph("2 · Contract resolution — the lookup chain", H1)]
-F += [Paragraph(
-    "This is the core of the module. Every ticket carries the IATA number it was issued under; "
-    "that number identifies the consolidator, and the consolidator owns the contracts. The chain "
-    "is walked <b>in order</b>, and stops at the first step that fails.", Body)]
+# --------------------------------------------------------------------- 1
+F += P("1 - The three figures", H1)
+F += P("This is the heart of the module. Every ticket produces three numbers, in this order, "
+       "and they must not be collapsed into one.")
 
-F += [table([
-    ["#", "Step", "Read from", "If it fails"],
-    ["1", "Tenant", "the CRM session", "reject — never price across tenants"],
-    ["2", "IATA number", "ticket number prefix / agency field in the AIR file",
-     "<b>FALLBACK</b> — no contract can be chosen"],
-    ["3", "Consolidator", "contracts table, matched on IATA + tenant",
-     "<b>FALLBACK</b> — IATA is not one we hold"],
-    ["4", "Carrier contract", "validating carrier + issue date inside the contract’s validity window",
-     "<b>FALLBACK</b> — no contract for this airline"],
-    ["5", "Clause", "route / origin / booking class / fare type / tour code",
-     "<b>NO_RULE</b> — contract exists, no clause covers this ticket"],
-    ["6", "Rate", "rate table by booking class",
-     "<b>NIL</b> or <b>AMBIGUOUS</b> — see §4"],
-], [0.3*inch, 1.05*inch, 2.5*inch, 3.05*inch])]
+F += table([
+    ["#", "Figure", "What it is"],
+    ["1", "<b>Commission</b>",
+     "What the airline pays, less the host's share. Zero on a net or bulk fare, and zero on a "
+     "published fare that fails a contract condition."],
+    ["2", "<b>Fees</b>",
+     "What the host charges: per exchange, per refund, on a net fare, on a ticket that earned "
+     "nothing. Always negative."],
+    ["3", "<b>Markup</b>",
+     "On a net fare, the agent's own margin - selling fare less net fare. It is the agent's "
+     "commission on that ticket, self-set inside a ceiling the airline permits."],
+], [0.3 * inch, 1.15 * inch, 5.45 * inch])
 
-F += [E(9), Paragraph(
-    "Steps 5 and 6 are <b>not</b> a fallback. A contract that exists and says <i>nothing is due</i> "
-    "is a different fact from having no contract at all, and the module must never merge them. "
-    "The first is a settled answer worth writing down; the second is a gap in the data.", Body)]
+F += P("The cheque", H2)
+F += code(["    cheque  =  commission  +  markup  -  fees"])
 
-F += [note(
-    "<b>The distinction that matters most.</b> NIL means a clause asserted zero — for example, "
-    "El Al forfeits commission when the mandatory tour code is missing. NO_RULE means nobody has "
-    "worked it out yet. Both display as $0.00. Only NIL may be written into the commission field; "
-    "NO_RULE must stay empty and go to a queue. Merging them silently books zero on tickets that "
-    "were actually owed money.")]
+F += P(
+    "<b>The markup belongs in the cheque.</b> The whole ticket, markup included, is collected "
+    "under the host's accreditation and settles to them - so the markup is not money the agent "
+    "already holds, it is money the host is holding on the agent's behalf and has to remit. "
+    "From the agent's side there is one figure, and this is it.")
 
-# ---------------------------------------------------------------- 3
-F += [Paragraph("3 · Data model", H1)]
-F += [Paragraph("Five tables. Everything is editable, and contracts are uploadable as files.", Body)]
+F += note(
+    "<b>This is the single most expensive thing to get wrong.</b> Reconciling a statement "
+    "against the COMMISSION alone reports every marked-up bulk ticket as "
+    "paid-where-nothing-was-due, and a bulk ticket missing from the statement as agreement "
+    "rather than a shortfall. On the sample batch that is the difference between an expected "
+    "total of $89.76 and $3,245.26 - the gap is markup being silently written off. Reconcile "
+    "against the cheque.")
 
-F += [Paragraph("tenant", H2)]
-F += [table([
-    ["Column", "Notes"],
-    ["id, name", "Every query below is scoped by tenant_id. Contracts never cross tenants."],
-], [1.5*inch, 5.4*inch])]
+F += P("Worked, on real tickets", H2)
+F += table([
+    ["Ticket", "Fare", "Base", "Commission", "Fee", "Markup", "<b>Cheque</b>"],
+    ["bulk business", "net", "12,378.75", "0.00", "-123.79", "2,475.75", "<b>2,351.96</b>"],
+    ["marked-up economy", "net", "3,398.75", "0.00", "-33.99", "679.75", "<b>645.76</b>"],
+    ["published S", "published", "1,496.00", "0.00", "-10.00", "0.00", "<b>-10.00</b>"],
+    ["exchange", "net", "3,707.00", "0.00", "-25.00", "0.00", "<b>-25.00</b>"],
+], [1.35 * inch, 0.72 * inch, 0.85 * inch, 1.0 * inch, 0.78 * inch, 0.85 * inch, 0.85 * inch])
 
-F += [Paragraph("consolidator", H2)]
-F += [table([
-    ["Column", "Notes"],
-    ["id, tenant_id, name", "e.g. “Main St Travel”"],
-    ["iata", "<b>The join key.</b> Matched against the IATA on the ticket. Unique per tenant."],
-    ["retains_points", "Points of the fare the consolidator keeps; the sub-agent takes the rest."],
-    ["fee_schedule", "Optional. Names a signed fee schedule (see §6). Null ⇒ plain retention only."],
-], [1.5*inch, 5.4*inch])]
+F += P("Note the third row: a ticket can be <b>negative</b>. It earned no commission and still "
+       "cost a fee. That is a real outcome, not an error, and the UI has to show it.")
 
-F += [Paragraph("carrier_contract", H2)]
-F += [table([
-    ["Column", "Notes"],
-    ["id, consolidator_id", ""],
-    ["carrier", "Validating carrier, e.g. LY."],
-    ["issued_from, issued_to", "Validity window, tested against the <b>ticketing date</b>."],
-    ["rates", "JSON: booking class → percentage. <code>{\"I\":\"9.00\",\"S\":\"7.00\", …}</code>"],
-    ["include_yq", "Whether the commissionable basis is base fare only, or base + YQ/YR."],
-    ["required_tour_code", "If set, a ticket without it earns nothing (asserted NIL)."],
-    ["origin_in", "Origination countries the contract covers, e.g. [US, CA]."],
-    ["scope", "ticket | coupon | half_rt — how the rate is applied."],
-    ["files[]", "Uploaded PDFs. Stored for audit; the rules above are what actually run."],
-], [1.5*inch, 5.4*inch])]
+# --------------------------------------------------------------------- 2
+F += P("2 - Net fares: the rule that governs them", H1)
+F += P("On a net fare the airline files a fare it will accept and lets the agent sell above it. "
+       "The agent's margin is their commission on that ticket. The host's fee for such a ticket "
+       "follows one principle:")
 
-F += [Paragraph("ticket_document  ·  statement_row", H2)]
-F += [table([
-    ["Table", "Notes"],
-    ["ticket_document", "One row per passenger per document. Ticket number, type (TKT/EXCH/RFND/VOID), "
-     "issue date, carrier, IATA, base fare, taxes, coupons, fare type, tour code, plus the "
-     "computed commission and outcome."],
-    ["statement_row", "One row per line of an uploaded consolidator statement: ticket number, "
-     "amount paid, fees withheld, statement date."],
-], [1.5*inch, 5.4*inch])]
+F += note(
+    "<b>The host cannot be worse off because the agent chose to issue net.</b> Whatever the host "
+    "would have earned had the same fare gone out published with commission, they earn. The "
+    "agent's choice of how to take their margin is theirs, and it is not allowed to cost the "
+    "host anything.")
 
-# ---------------------------------------------------------------- 4
-F += [Paragraph("4 · The pre-fill rule", H1)]
-F += [Paragraph(
-    "The module returns a <code>prefill</code> field that is either a decimal string or "
-    "<code>null</code>. <b>Bind it directly to the commission field.</b> The decision about whether "
-    "a number is safe to write has already been made — the caller does not repeat it.", Body)]
+F += P("So the host's fee on a net fare is <b>the higher of</b> the point they keep on a "
+       "published fare, and a flat figure by cabin. The cabin figure is a FLOOR, not the fee - "
+       "it applies only to fares small enough that a point of them comes to very little.")
 
-F += [table([
+F += code([
+    "  net fare fee = max( published-fare point x base fare,  cabin floor )",
+    "",
+    "  12,378.75 business:  1% = 123.79   floor 50   ->  123.79",
+    "     900.00 economy:   1% =   9.00   floor 15   ->   15.00",
+])
+
+F += P("Reading the cabin figure as the fee rather than as a floor understates the host on every "
+       "large fare - $50 where $123.79 is owed on the sample business ticket - and would have "
+       "the reconciler reporting the host's own correct deduction as an unexplained one.")
+
+F += P("The markup ceiling", H2)
+F += P(
+    "The airline permits a markup up to a limit, which varies by fare. Where that limit is known "
+    "and configured, the module reports the markup as a percentage and the <b>headroom</b> left "
+    "under it. Headroom matters because it is the one loss no statement can show: marking up 10% "
+    "where 25% was permitted leaves money behind, nobody short-paid anything, and reconciliation "
+    "will say AGREES. An unconfigured ceiling reports as <b>unknown</b>, never as zero.")
+
+F += P("Reading the markup from the file", H2)
+F += P(
+    "Amadeus records it in the FM element as <code>FM*G*679.75A</code>. Those digits match the "
+    "commission-amount pattern exactly, so <b>the <code>*G*</code> must be tested first</b> - "
+    "otherwise the agent's own margin is filed as commission the host owes, and every marked-up "
+    "ticket reports a shortfall. Cross-check it against selling base less net base "
+    "(<code>KS-</code> less <code>KN-</code>); the two are independent and must agree.")
+
+# --------------------------------------------------------------------- 3
+F += P("3 - Finding the contract", H1)
+F += P(
+    "Every ticket carries the IATA number it was issued under. <b>The IATA number owns the "
+    "contract, not the agency</b> - one host commonly holds several numbers with different rates "
+    "on the same airline. The MST agreement says so itself: \"PNRs created under one of MST's "
+    "affiliate offices in order to access higher contracted commission levels.\"")
+
+F += P("The chain is walked <b>in order</b> and stops at the first step that fails. Each stop "
+       "reports which step it was, because they are four different things to do about it.")
+
+F += table([
+    ["#", "Step", "If it fails", "What that means"],
+    ["1", "Tenant", "reject", "Never price across tenants"],
+    ["2", "IATA on the ticket", "<b>no_iata</b>", "Nothing to match on"],
+    ["3", "Office for that IATA", "<b>unknown_iata</b>", "A contract to go and get"],
+    ["4", "Contract for the airline", "<b>no_carrier</b>", "A contract to negotiate"],
+    ["5", "Ticketing date in window", "<b>outside_window</b>", "A renewal"],
+    ["6", "Clause: route, class, fare type, tour code", "<b>NO_RULE</b>",
+     "Contract held, nothing covers this"],
+], [0.3 * inch, 2.35 * inch, 1.35 * inch, 2.9 * inch])
+
+F += P("Steps 1-5 are the <b>fallback</b>: no contract could be chosen, so no figure is written. "
+       "Step 6 is different - a contract exists and no clause covers the ticket.")
+
+F += note(
+    "<b>NIL and NO_RULE must never merge.</b> NIL means a clause asserted zero - EL AL forfeits "
+    "the commission when the mandatory tour code is missing, and that is a settled answer. "
+    "NO_RULE means nobody has worked it out. Both display as $0.00; only NIL may be written into "
+    "a field. Merging them books zero on tickets that were actually owed money, which is the "
+    "failure this module exists to prevent.")
+
+F += P("Bootstrapping from the files", H2)
+F += P(
+    "<code>discoverFromFiles()</code> groups incoming documents by IATA and carrier and reports "
+    "what it sees - ticket counts, date ranges, fare types, tour codes, and the rates actually "
+    "claimed per booking class - flagging each group as configured or not. Use it to populate "
+    "the contract table from history rather than typing it blind.")
+
+F += P(
+    "It proposes a rate only where <b>every</b> ticket in a class agreed on one. Where they "
+    "disagree it reports the disagreement instead: what an agent claimed is evidence, not a "
+    "contract, and seeding a table with the more popular of two wrong answers would encode the "
+    "mistake as policy and then reconcile against it forever.")
+
+# --------------------------------------------------------------------- 4
+F += P("4 - Data model", H1)
+F += P("Everything is editable, and contracts are uploadable as files. Scoped by tenant "
+       "throughout.")
+
+F += table([
+    ["Table", "Key columns"],
+    ["<b>tenant</b>", "id, name. Every query below is scoped by tenant_id."],
+    ["<b>office</b>",
+     "id, tenant_id, <b>iata</b> (the join key, unique per tenant), name, agency (label "
+     "grouping several offices under one host), retains_points, fee_schedule"],
+    ["<b>carrier_contract</b>",
+     "id, office_id, <b>carrier</b>, issued_from, issued_to, rates (JSON: class -&gt; percent), "
+     "include_yq, required_tour_code, origin_in, scope, max_markup_percent, markup_basis, files[]"],
+    ["<b>host_agreement</b>",
+     "id, office_id, the fee schedule: per-fare-type splits and the fee rows (exchange, refund, "
+     "net fare by cabin, non-commissionable). Each row carries <b>approved: boolean</b>."],
+    ["<b>ticket_document</b>",
+     "One row per passenger per document: ticket number, type, issue date, carrier, iata, base "
+     "fare, net fare, taxes, coupons, fare type, tour code, plus the computed commission, fees, "
+     "markup, cheque and outcome."],
+    ["<b>statement_row</b>",
+     "One row per line of an uploaded statement: ticket number, amount paid, fees withheld, "
+     "statement date."],
+], [1.4 * inch, 5.5 * inch])
+
+F += note(
+    "<b>Keep the <code>approved</code> flag.</b> Clauses that depend on facts an AIR file does "
+    "not carry - corporate bookings, promotional net fares, discretionary minimum fees - are "
+    "encoded but left unapproved, so the engine surfaces them as exposure rather than booking "
+    "them as certainty. An unapproved clause never spends.")
+
+F += P("Adding a second host later", H2)
+F += P("Nothing structural changes: a new host is new <code>office</code> rows (one per IATA "
+       "number) with their own <code>carrier_contract</code> and <code>host_agreement</code>. "
+       "Resolution already keys on tenant + IATA + carrier + date, so tickets route themselves.")
+
+# --------------------------------------------------------------------- 5
+F += P("5 - The pre-fill rule", H1)
+F += P("The module returns <code>prefill</code>: a decimal string, or <code>null</code>. "
+       "<b>Bind it straight to the field.</b> The decision about whether a number is safe to "
+       "write has already been made - the caller does not repeat it.")
+
+F += table([
     ["Outcome", "prefill", "Meaning"],
-    ["CALCULATED", "the amount", "A clause matched and produced a figure."],
-    ["NIL", "0.00", "A clause asserted that nothing is due. A settled answer."],
-    ["NO_RULE", "null", "A contract exists but no clause covers this ticket."],
-    ["AMBIGUOUS", "null", "Two clauses matched equally well. Never guessed."],
-    ["INCOMPLETE", "null", "A clause needed something the document did not carry."],
-    ["NO_CONTRACT", "null", "No contract for this IATA. <b>This is the fallback.</b>"],
-    ["ERROR", "null", "The document could not be priced at all."],
-], [1.15*inch, 0.85*inch, 4.9*inch])]
+    ["CALCULATED", "the amount", "A clause matched and produced a figure"],
+    ["NIL", "0.00", "A clause asserted nothing is due - a settled answer"],
+    ["NO_RULE", "null", "Contract held, no clause covers this ticket"],
+    ["AMBIGUOUS", "null", "Two clauses matched equally. Never guessed"],
+    ["INCOMPLETE", "null", "A clause needed something the document lacked"],
+    ["NO_CONTRACT", "null", "No contract for this IATA - the fallback"],
+    ["ERROR", "null", "Could not be priced at all"],
+], [1.15 * inch, 0.85 * inch, 4.9 * inch])
 
-F += [E(9), Paragraph(
-    "Two further conditions suppress a pre-fill even on a good outcome, and both were learned from "
-    "real tickets:", Body)]
+F += P("Two further conditions suppress a pre-fill even on a good outcome:")
 
-F += [table([
+F += table([
     ["Condition", "Why"],
     ["The layer being paid must be the layer that settled",
-     "On a Zürich–Tel Aviv reissue the carrier layer resolved cleanly (a $100 clawback) while "
-     "the sub-agent layer could not resolve its share at all. Reading one and paying the other "
-     "offered a confident $0.00 on an open question."],
+     "On a Zurich-Tel Aviv reissue the carrier layer resolved cleanly (a $100 clawback) while "
+     "the sub-agent layer could not resolve its share. Reading one and paying the other offered "
+     "a confident $0.00 on an open question."],
     ["No REVIEW flag on the document",
-     "The engine raises REVIEW when two signed contracts disagree — on that same ticket, that the "
-     "host pays $100 out of pocket. A figure already flagged for a human is not one to bind to a "
-     "form field."],
-], [2.15*inch, 4.75*inch])]
+     "REVIEW is raised when two signed contracts disagree - on that same ticket, that the host "
+     "pays $100 out of pocket. A figure already flagged for a human is not one to bind to a "
+     "field."],
+], [2.15 * inch, 4.75 * inch])
 
-F += [E(9), Paragraph(
-    "Every result also carries <code>explanation</code>, <code>clause</code> and "
-    "<code>ruleId</code>. Show the explanation next to the field. A number the agent cannot trace "
-    "back to a line of the contract is a number they cannot argue with the consolidator about, "
-    "which defeats the point of the module.", Body)]
+F += P("Every result carries <code>explanation</code>, <code>clause</code> and "
+       "<code>ruleId</code>. Show the explanation beside the field. A number the agent cannot "
+       "trace to a line of the contract is one they cannot dispute, which defeats the point.")
 
-F += [Paragraph("Fees are separate from commission", H2)]
-F += [Paragraph(
-    "<code>subAgentCommission</code> is what was earned. <code>netToSubAgent</code> is what is "
-    "actually received after the consolidator’s fees. On a net or bulk fare these differ on every "
-    "ticket — the commission reads 0.00 while the ticket costs $15 to $50. "
-    "<b>Show the net.</b> Each fee line carries the clause it came from.", Body)]
+# --------------------------------------------------------------------- 6
+F += P("6 - The weekly statement", H1)
+F += P("Uploaded as CSV or Excel. Each row is matched to a ticket by ticket number and lands in "
+       "exactly one of eight states. Nothing is dropped: a row matching no ticket, and a ticket "
+       "on no row, are both findings. <b>Compare against the cheque, not the commission.</b>")
 
-# ---------------------------------------------------------------- 5
-F += [Paragraph("5 · Weekly statement reconciliation", H1)]
-F += [Paragraph(
-    "The statement is uploaded as CSV or Excel. Each row is matched to a ticket by ticket number, "
-    "and every row lands in exactly one of eight states. Nothing is dropped: a row that matches no "
-    "ticket, and a ticket that appears on no row, are both findings.", Body)]
-
-F += [table([
+F += table([
     ["Status", "Severity", "Meaning", "Action"],
     ["<b>SHORT_PAID</b>", "critical", "Paid less than the contract gives", "Claim the difference"],
-    ["<b>NOT_ON_STATEMENT</b>", "critical", "Earned, but the statement omits it entirely", "Claim in full"],
+    ["<b>NOT_ON_<br/>STATEMENT</b>", "critical", "Owed, and the statement omits it",
+     "Claim in full"],
     ["OVER_PAID", "warning", "Paid more than the contract gives", "Expect a clawback"],
-    ["PAID_WHERE_<br/>NONE_DUE", "warning", "Paid on a document owed nothing", "Verify before spending"],
+    ["PAID_WHERE_<br/>NONE_DUE", "warning", "Paid on a document owed nothing",
+     "Verify before spending"],
     ["NOT_IN_TICKETS", "warning", "Paid for a document not in our records", "Investigate"],
-    ["DEDUCTION", "warning", "A fee withheld that no supplied agreement covers", "Query the fee"],
-    ["AGREES", "ok", "Matches to the cent", "—"],
-    ["CORRECTLY_NIL", "ok", "Both sides agree nothing is due", "—"],
-], [1.78*inch, 0.65*inch, 2.62*inch, 1.85*inch])]
+    ["DEDUCTION", "warning", "A fee withheld no agreement covers", "Query the fee"],
+    ["AGREES", "ok", "Matches to the cent", "-"],
+    ["CORRECTLY_NIL", "ok", "Both sides agree nothing is due", "-"],
+], [1.35 * inch, 0.65 * inch, 2.75 * inch, 1.75 * inch])
 
-F += [E(9), Paragraph(
-    "The two critical states are the ones that cost money and are invisible without this module: "
-    "a short payment and an omission both look like a normal week on a statement.", Body)]
+F += P("Excel export", H2)
+F += P("One row per ticket, sorted <b>worst first</b> (critical, warning, ok) so what needs "
+       "attention is at the top. <code>Variance</code> is the money column; negative means "
+       "underpaid.")
 
-F += [Paragraph("Excel export — column layout", H2)]
-F += [Paragraph(
-    "One row per ticket, sorted <b>worst first</b> (critical, then warning, then ok) so the rows "
-    "that need attention are at the top and everything below can be ignored. "
-    "<code>Variance</code> is the money column: negative means underpaid.", Body)]
-
-F += [table([
+F += table([
     ["Column", "Example", "Column", "Example"],
-    ["Status", "SHORT_PAID", "Expected", "70.00"],
-    ["Ticket", "114-7503646565", "Paid", "55.04"],
-    ["Passenger", "COHEN/EDMOUND", "<b>Variance</b>", "<b>-14.96</b>"],
-    ["Type", "TKT", "Fees withheld", "0.00"],
-    ["Issue date", "2026-03-02", "Net expected", "70.00"],
-    ["Route", "JFK–TLV", "Contract", "EL AL 2026"],
-    ["Class", "S", "Clause", "Attachment A"],
-    ["Fare type", "published", "Why", "S files at 7%, 8% was claimed"],
-], [0.95*inch, 1.55*inch, 1.15*inch, 2.35*inch])]
+    ["Status", "SHORT_PAID", "Commission", "0.00"],
+    ["Ticket", "114-7507683179", "Fees", "-33.99"],
+    ["Passenger", "TESTPAX/SAMPLE", "Markup", "679.75"],
+    ["Type", "TKT", "<b>Cheque due</b>", "<b>645.76</b>"],
+    ["Issue date", "2026-08-31", "Paid", "600.00"],
+    ["Route", "JFK-TLV", "<b>Variance</b>", "<b>-45.76</b>"],
+    ["Class / fare", "K / net", "Contract", "EL AL 2026"],
+    ["Base fare", "3398.75", "Why", "net fare fee, 1% of fare"],
+], [0.95 * inch, 1.55 * inch, 1.15 * inch, 2.35 * inch])
 
-F += [E(8), Paragraph(
-    "Add a totals row: sum of variance, split into <i>short-paid</i>, <i>over-paid</i>, "
-    "<i>missing</i> and <i>unexplained deductions</i>. That single figure is what the week is "
-    "worth arguing about, and it is what the agent takes to the consolidator.", Body)]
+F += P("Add a totals row splitting variance into <i>short-paid</i>, <i>over-paid</i>, "
+       "<i>missing</i> and <i>unexplained deductions</i>. That figure is what the week is worth "
+       "arguing about. Red fill on negative variance, amber on positive; freeze the header.")
 
-F += [note(
-    "<b>Conditional formatting.</b> Red fill on the Variance cell where it is negative, amber where "
-    "positive, none where zero. Freeze the header row. The point is that the agent should be able "
-    "to open the file and see the week’s exposure without reading a single number carefully.")]
-
-# ---------------------------------------------------------------- 6
-F += [Paragraph("6 · API surface", H1)]
-F += [Paragraph(
-    "Three functions. All take strings and return plain JSON — no bigint, no Date, no class "
-    "instances — so the whole response survives <code>JSON.stringify</code> into a database "
-    "column or an HTTP body. Money is always a decimal string.", Body)]
-
-F += [code([
-    "import { priceAirFile, priceAirFiles, checkStatement }",
+# --------------------------------------------------------------------- 7
+F += P("7 - API", H1)
+F += code([
+    "import { priceAirFile, checkStatement, discoverFromFiles }",
     "  from '@commission/sdk'",
     "",
-    "// One AIR file -> what each passenger's ticket is worth",
     "const result = priceAirFile(airText, {",
-    "  config,               // contracts, loaded from your DB",
-    "  view: 'subagent',     // or 'host'",
+    "  config,                 // contracts, loaded from your DB per tenant",
+    "  tenantId: 'acme',",
+    "  view: 'subagent',       // or 'host'",
     "})",
     "",
     "for (const doc of result.documents) {",
-    "  doc.ticketNumber        // '114-7503646565'",
-    "  doc.prefill             // '60.00'  or null -> leave the field empty",
-    "  doc.outcome             // 'CALCULATED' | 'NIL' | 'NO_RULE' | ...",
-    "  doc.subAgentCommission  // '60.00'   what was earned",
-    "  doc.netToSubAgent       // '-15.00'  what is actually received",
-    "  doc.fees                // [{ clause, label, amount }]",
-    "  doc.explanation         // show this next to the field",
-    "  doc.flags               // [{ code: 'REVIEW', message }]",
+    "  doc.ticketNumber       // '114-7507683179'",
+    "  doc.prefill            // '645.76' or null -> leave the field empty",
+    "  doc.outcome            // 'CALCULATED' | 'NIL' | 'NO_RULE' | ...",
+    "",
+    "  doc.subAgentCommission // '0.00'     airline's commission, less host share",
+    "  doc.fees               // [{ clause, label, amount }]",
+    "  doc.markup             // '679.75'   the agent's own margin",
+    "  doc.totalToSubAgent    // '645.76'   THE CHEQUE - reconcile against this",
+    "  doc.netToSubAgent      // '-33.99'   commission less fees, excludes markup",
+    "",
+    "  doc.markupPercent      // '25.0000' or null if no ceiling configured",
+    "  doc.markupHeadroom     // '0.00' = at the ceiling; negative = over it",
+    "",
+    "  doc.explanation        // show beside the field",
+    "  doc.flags              // [{ code: 'REVIEW', message }]",
     "}",
     "",
-    "// A whole folder at once",
-    "priceAirFiles([{ name, text }, ...], opts)",
-    "",
-    "// Weekly reconciliation",
-    "checkStatement(statementCsv, airFiles, opts)",
-])]
+    "checkStatement(statementCsv, airFiles, opts)   // weekly reconciliation",
+    "discoverFromFiles(airFiles, opts)              // bootstrap contracts",
+])
 
-F += [E(8), Paragraph(
-    "An HTTP wrapper is also provided (<code>POST /price</code>, <code>POST /statement</code>, "
-    "<code>GET /health</code>) with no dependencies, for callers that cannot import JavaScript.", Body)]
+F += P("All money crosses the boundary as decimal strings - no bigint, no floats, no Date - so "
+       "the whole response survives <code>JSON.stringify</code> into a column or an HTTP body. "
+       "An HTTP wrapper is provided (<code>POST /price</code>, <code>POST /statement</code>) "
+       "with no dependencies, for callers that cannot import JavaScript.")
 
-F += [Paragraph("Where the config comes from", H2)]
-F += [Paragraph(
-    "<code>config</code> is a plain JSON object built from the three contract tables in §3. Load "
-    "it per tenant, cache it, and rebuild it whenever a contract is edited. It has no behaviour of "
-    "its own — it is data — which is what keeps contracts editable without a deploy.", Body)]
-
-F += [Paragraph("Signed fee schedules", H2)]
-F += [Paragraph(
-    "Most host agreements are one line: <i>we keep a point</i>. That is <code>retains_points</code> "
-    "and needs nothing further. A real signed schedule is richer — a percentage on published "
-    "fares, a flat fee by cabin on net fares, a charge per exchange and per refund, and a charge on "
-    "tickets that earn nothing. Where one has been encoded, name it in "
-    "<code>fee_schedule</code>; otherwise the plain retention applies, which is what any new agency "
-    "starts from.", Body)]
-
-F += [note(
-    "<b>Clauses that cannot be decided from a ticket are left switched off.</b> Corporate bookings, "
-    "promotional net fares and discretionary minimum fees depend on facts an AIR file does not "
-    "carry. They are encoded but marked unapproved, so the engine surfaces them as exposure rather "
-    "than booking them as certainty. Keep that flag in the schema: <code>approved: boolean</code>.")]
-
-# ---------------------------------------------------------------- 7
-F += [Paragraph("7 · Build order", H1)]
-F += [Paragraph(
-    "CRM first, standalone second. The CRM has real tickets arriving every day, which is the only "
-    "way to find the record shapes that break a parser — and every serious bug so far has come "
-    "from a real file, not from a test. A standalone product built first would be a guess about "
-    "what other agencies need, validated by nobody.", Body)]
-
-F += [table([
+# --------------------------------------------------------------------- 8
+F += P("8 - Build order", H1)
+F += table([
     ["Phase", "Scope", "Done when"],
-    ["<b>1</b>", "Contract tables + resolution chain (§2, §3). Read-only: compute and "
-     "display, write nothing.", "Every ticket in the CRM shows an outcome and an explanation."],
-    ["<b>2</b>", "Pre-fill (§4). Write the number into the commission field.",
-     "Agents stop entering commission by hand on CALCULATED tickets."],
-    ["<b>3</b>", "Statement upload + reconciliation + Excel export (§5).",
-     "A week’s statement produces a sorted exception list."],
+    ["<b>1</b>",
+     "Contract tables + resolution. <b>Read-only</b>: compute and display, write nothing.",
+     "Every LY/MST ticket shows a cheque figure and an explanation"],
+    ["<b>2</b>", "Pre-fill. Write the number into the field.",
+     "Agents stop entering commission by hand on CALCULATED and NIL tickets"],
+    ["<b>3</b>", "Statement upload, reconciliation, Excel export.",
+     "A week's statement produces a sorted exception list"],
     ["<b>4</b>", "Contract editing and PDF upload in the UI.",
-     "A new airline contract can be added without a deploy."],
-    ["<b>5</b>", "Extract as standalone for other agencies.",
-     "The engine already has no CRM dependency — this is packaging, not a rewrite."],
-], [0.5*inch, 3.3*inch, 3.1*inch])]
+     "A new airline can be added without a deploy"],
+    ["<b>5</b>", "Second host agency; then standalone for other agencies.",
+     "The engine has no CRM dependency - this is packaging, not a rewrite"],
+], [0.62 * inch, 3.23 * inch, 3.05 * inch])
 
-F += [E(6), Paragraph(
-    "Phase 1 being read-only is deliberate. It lets the computed figure be compared against what "
-    "agents actually entered, across thousands of historical tickets, before a single number is "
-    "written automatically. That comparison is the cheapest validation available.", Body)]
+F += P("<b>Phase 1 being read-only is the important one.</b> It lets the computed figure be "
+       "compared against what agents actually entered, across thousands of historical files, "
+       "before a single number is written automatically. That comparison is the cheapest "
+       "validation available - it is how a ticket claiming 8% on a class EL AL files at 7% was "
+       "found.")
 
-F += [Paragraph("Non-negotiables", H1)]
-F += [table([
+F += P("Non-negotiables", H1)
+F += table([
     ["Rule", "Reason"],
     ["Money is integer minor units, never floats",
-     "A half-cent bias is invisible per ticket and material across a year."],
-    ["NIL and NO_RULE never merge",
-     "Both show $0.00; only one is an answer."],
-    ["A tie is never broken arbitrarily",
-     "Two clauses matching equally returns AMBIGUOUS. A wrong confident number costs more than a queued one."],
-    ["Every figure cites its clause",
-     "The output is evidence in a dispute, not just a number."],
-    ["The engine does no I/O",
-     "No database, no clock, no randomness — the same ticket always prices the same."],
-    ["Unapproved clauses do not spend",
-     "A term nobody has confirmed is exposure, not income."],
-], [2.35*inch, 4.55*inch])]
+     "A half-cent bias is invisible per ticket and material across a year"],
+    ["NIL and NO_RULE never merge", "Both show $0.00; only one is an answer"],
+    ["Reconcile against the cheque, not the commission",
+     "Otherwise every marked-up ticket reports wrongly"],
+    ["A tie is never broken arbitrarily", "Two clauses matching equally returns AMBIGUOUS"],
+    ["Every figure cites its clause", "The output is evidence in a dispute"],
+    ["The engine does no I/O", "No database, no clock, no randomness - same ticket, same number"],
+    ["Unapproved clauses do not spend", "A term nobody confirmed is exposure, not income"],
+], [2.5 * inch, 4.4 * inch])
 
-F += [Paragraph("Open questions for the consolidator", H1)]
-F += [Paragraph(
-    "These are money, and each needs an answer rather than a guess. They are recorded in the code "
-    "alongside the clause they come from.", Body)]
-
-F += [table([
+# Kept whole: two rows orphaned onto a page of their own read as an accident.
+F += [KeepTogether(P("Open questions for Main St. Travel", H1) + table([
     ["Question", "Impact"],
-    ["Is the commissionable basis the base fare alone, or base plus YQ/YR? Neither contract states it.",
-     "Roughly $35 per ticket on a typical long-haul fare"],
-    ["Which booking classes count as Economy, Premium and Business for the net-fare fee?",
-     "Decides a $15 fee from a $50 one on every net fare"],
-    ["Is the tour code enforced in practice, or only on paper?",
-     "Currently forfeits the commission on every sampled ticket"],
-    ["Is the minimum fee on small commissions applied automatically or at discretion?",
+    ["Is the commissionable basis the base fare alone, or base plus YQ/YR? Neither contract "
+     "states it.", "~$35 per ticket on a long-haul fare"],
+    ["Is the host's point on a NET fare struck on the selling fare or the net fare before "
+     "markup?", "$33.99 vs $27.19 on one sampled ticket"],
+    ["Which booking classes count as Economy, Premium and Business for the cabin floor?",
+     "Decides a $15 floor from a $50 one"],
+    ["Is the tour code enforced in practice? No sampled ticket carries it.",
+     "Forfeits the commission on every published fare"],
+    ["Is the $10 minimum fee on sub-$10 commission automatic or discretionary?",
      "$10 per affected ticket"],
-    ["Statements are weekly but settlement is monthly — which is authoritative?",
-     "Decides whether a weekly shortfall is real or just timing"],
-], [4.0*inch, 2.9*inch])]
+    ["Statements are weekly, settlement is monthly - which is authoritative?",
+     "Whether a weekly shortfall is real or timing"],
+], [4.0 * inch, 2.9 * inch]))]
 
 doc = SimpleDocTemplate(
     "docs/commission-module-spec.pdf", pagesize=LETTER,
-    leftMargin=0.85*inch, rightMargin=0.85*inch,
-    topMargin=0.75*inch, bottomMargin=0.85*inch,
-    title="Commission & Consolidator Payouts — Module Specification",
-    author="A. Appel and Co",
-)
+    leftMargin=0.85 * inch, rightMargin=0.85 * inch,
+    topMargin=0.75 * inch, bottomMargin=0.85 * inch,
+    title="Commission & Consolidator Payouts - Module Specification",
+    author="A. Appel and Co")
 doc.build(F, onFirstPage=footer, onLaterPages=footer)
 print("built")
