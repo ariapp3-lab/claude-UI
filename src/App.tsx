@@ -10,6 +10,7 @@ import StatementPage from './commission/pages/StatementPage';
 import TicketsPage from './commission/pages/TicketsPage';
 import { WorkspaceProvider } from './commission/workspace';
 import { BatchProvider } from './commission/batch';
+import { ErrorBoundary } from './commission/components/ErrorBoundary';
 
 type Page = string;
 
@@ -43,7 +44,9 @@ export default function App() {
       <Sidebar activePage={activePage} onNavigate={setActivePage} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header onNewOrder={() => setActivePage('Orders')} />
-        <WorkspaceProvider><BatchProvider>{renderPage()}</BatchProvider></WorkspaceProvider>
+        <WorkspaceProvider><BatchProvider>
+          <ErrorBoundary key={activePage} label={activePage}>{renderPage()}</ErrorBoundary>
+        </BatchProvider></WorkspaceProvider>
       </div>
     </div>
   );

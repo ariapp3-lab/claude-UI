@@ -8,6 +8,7 @@ import TicketsPage from '../commission/pages/TicketsPage';
 import ContractPage from '../commission/pages/ContractPage';
 import { WorkspaceProvider } from '../commission/workspace';
 import { BatchProvider } from '../commission/batch';
+import { ErrorBoundary } from '../commission/components/ErrorBoundary';
 
 /**
  * The standalone product.
@@ -73,7 +74,7 @@ export default function StandaloneApp() {
         </aside>
 
         <main className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          {active.el}
+          <ErrorBoundary key={active.id} label={active.label}>{active.el}</ErrorBoundary>
         </main>
       </div>
       </BatchProvider>

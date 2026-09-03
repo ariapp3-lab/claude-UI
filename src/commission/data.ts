@@ -96,8 +96,9 @@ export function isNeg(m: Money | null | undefined): boolean {
 
 /** "JFK–TLV" — named by the turnaround, so a round trip is not JFK–JFK. */
 export function routeOf(ticket: TicketDocument): string {
-  if (ticket.coupons.length === 0) return '?';
-  return `${ticket.coupons[0].origin}\u2013${journeyDestination(ticket.coupons, DEFAULT_GEO)}`;
+  if (ticket.coupons.length === 0) return 'no coupons';
+  const to = journeyDestination(ticket.coupons, DEFAULT_GEO);
+  return `${ticket.coupons[0].origin}\u2013${to ?? '?'}`;
 }
 
 export interface DetectedConsolidator {

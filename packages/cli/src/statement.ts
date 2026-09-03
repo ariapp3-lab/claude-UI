@@ -14,7 +14,7 @@
 
 import {
   DEFAULT_GEO, formatMoney, isZero, journeyDestination, subtract, zero,
-  type Money, type Rule, type TicketDocument,
+  type Money, type Rule, type TicketDocument, type Waterfall,
 } from "@commission/engine";
 import { calculate } from "@commission/engine";
 import type { StatementLine } from "@commission/parsers";
@@ -116,13 +116,19 @@ export function settle(input: SettleInput): Settlement {
 
   for (const [k, ticket] of byTicket) {
     seen.add(k);
-    const w = calculate({ ticket, rules: input.rules, subAgentId: input.subAgentId });
+    let w: Waterfall;
+    try {
+      w = calculate({ ticket, rules: input.rules, subAgentId: input.subAgentId });
+    } catch (e) {
+      warnings.push(`${ticket.ticketNumber} could not be priced: ${(e as Error).message}`);
+      continue;
+    }
     const expected = w.subAgent?.commission ?? zero(currency);
     const line = byLine.get(k);
 
     // Named by the turnaround: a round trip is JFK–TLV, not JFK–JFK.
     const route = ticket.coupons.length
-      ? `${ticket.coupons[0].origin}–${journeyDestination(ticket.coupons, DEFAULT_GEO)}`
+      ? `${ticket.coupons[0].origin}–${journeyDestination(ticket.coupons, DEFAULT_GEO) ?? "?"}`
       : null;
     const classes = [...new Set(ticket.coupons.map((c) => c.rbd))].join("/") || null;
 

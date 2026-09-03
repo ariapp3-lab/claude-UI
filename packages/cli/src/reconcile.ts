@@ -272,6 +272,15 @@ function classify(
   return { reason: "AGREES", explanation: "the claim matches the contract" };
 }
 
+/** The counterfactual explores relaxed rules; it must not be able to throw. */
+function safeRecoverable(ticket: TicketDocument, rules: readonly Rule[]): Recovery | null {
+  try {
+    return recoverableValue(ticket, rules);
+  } catch {
+    return null;
+  }
+}
+
 export function reconcile(
   inputs: readonly ReconcileInput[],
   rules: readonly Rule[],
@@ -281,11 +290,35 @@ export function reconcile(
   const findings: Finding[] = [];
 
   for (const { ticket, claimed: rawClaimed, markup } of inputs) {
-    const w = calculate({ ticket, rules });
+    // A batch is thousands of documents from a live feed, and one of them
+    // failing is not a reason to lose the other four thousand. The failure is
+    // reported as a finding against the document that caused it.
+    let w: Waterfall;
+    try {
+      w = calculate({ ticket, rules });
+    } catch (e) {
+      findings.push({
+        ticketNumber: ticket.ticketNumber,
+        documentType: ticket.documentType,
+        route: "?", classes: "?",
+        fareType: ticket.bulk ? "net (BT)" : ticket.fareType,
+        issueDate: ticket.issueDate,
+        reason: "INCOMPLETE", severity: "warning",
+        clause: null, ruleId: null,
+        baseFare: ticket.baseFare,
+        claimed: rawClaimed ?? zero(ticket.currency),
+        entitled: zero(ticket.currency),
+        variance: zero(ticket.currency),
+        recoverable: null,
+        explanation: `this document could not be priced: ${(e as Error).message}`,
+        ticket,
+      });
+      continue;
+    }
     const claimed = rawClaimed ?? zero(ticket.currency);
     const entitled = w.carrier.commission;
 
-    const rec = isZero(entitled) ? recoverableValue(ticket, rules) : null;
+    const rec = isZero(entitled) ? safeRecoverable(ticket, rules) : null;
     const recoverable =
       rec && rec.amount.units > 0n &&
       (rec.liftedRules.length > 0 || rec.waivedConditions.length > 0)

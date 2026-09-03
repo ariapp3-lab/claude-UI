@@ -138,8 +138,12 @@ export function isWithin(
 export function journeyDestination(
   coupons: readonly Coupon[],
   geo: GeoContext,
-): string {
-  if (coupons.length === 0) throw new Error("journeyDestination: no coupons");
+): string | null {
+  // A document can legitimately have no flight coupons: an EMD, a void, a
+  // refund raised on its own. Returning null lets a rule that needs a journey
+  // report the document as unresolvable, which is a finding. Throwing took
+  // down whatever was calculating at the time.
+  if (coupons.length === 0) return null;
   const last = coupons[coupons.length - 1].destination;
   const originCountry = countryOf(coupons[0].origin, geo);
   if (!originCountry) return last;
@@ -151,8 +155,8 @@ export function journeyDestination(
   return last;
 }
 
-export function journeyOrigin(coupons: readonly Coupon[]): string {
-  if (coupons.length === 0) throw new Error("journeyOrigin: no coupons");
+export function journeyOrigin(coupons: readonly Coupon[]): string | null {
+  if (coupons.length === 0) return null;
   return coupons[0].origin;
 }
 
@@ -204,6 +208,7 @@ export function splitHalves(
 ): { label: string; coupons: Coupon[] }[] {
   if (coupons.length === 0) return [];
   const turnaround = journeyDestination(coupons, geo);
+  if (turnaround === null) return [];
   const idx = coupons.findIndex((c) => c.destination === turnaround);
   if (idx === -1 || idx === coupons.length - 1) {
     return [{ label: `${coupons[0].origin}–${turnaround}`, coupons: [...coupons] }];

@@ -221,6 +221,15 @@ export function evaluateRule(
     // in the USA and Canada pays nothing on the mirror-image journey, so this
     // must never be folded into a bidirectional market test.
     const origin = journeyOrigin(ticket.coupons);
+    if (origin === null) {
+      unresolvedGeography = true;
+      traces.push({
+        field: "originIn",
+        expected: `originates in ${m.originIn.join(" or ")}`,
+        actual: "the document carries no flight coupons",
+        passed: false,
+      });
+    } else {
     const oc = countryOf(origin, ctx.geo);
     if (oc === null) unresolvedGeography = true;
     traces.push({
@@ -229,23 +238,33 @@ export function evaluateRule(
       actual: `${origin}(${oc ?? "?"})`,
       passed: m.originIn.some((scope) => isWithin(origin, scope, ctx.geo)),
     });
+    }
   }
 
   if (m.originNotIn !== undefined) {
     const origin = journeyOrigin(ticket.coupons);
-    const oc = countryOf(origin, ctx.geo);
+    const oc = origin === null ? null : countryOf(origin, ctx.geo);
     if (oc === null) unresolvedGeography = true;
     traces.push({
       field: "originNotIn",
       expected: `does not originate in ${m.originNotIn.join(" or ")}`,
-      actual: `${origin}(${oc ?? "?"})`,
-      passed: !m.originNotIn.some((scope) => isWithin(origin, scope, ctx.geo)),
+      actual: origin === null ? "the document carries no flight coupons" : `${origin}(${oc ?? "?"})`,
+      passed: origin !== null && !m.originNotIn.some((scope) => isWithin(origin, scope, ctx.geo)),
     });
   }
 
   if (m.market !== undefined) {
     const origin = coupon ? coupon.origin : journeyOrigin(ticket.coupons);
     const dest = coupon ? coupon.destination : journeyDestination(ticket.coupons, ctx.geo);
+    if (origin === null || dest === null) {
+      unresolvedGeography = true;
+      traces.push({
+        field: "market",
+        expected: `${m.market.from} ↔ ${m.market.to}`,
+        actual: "the document carries no flight coupons",
+        passed: false,
+      });
+    } else {
     const r = matchMarket(origin, dest, m.market, ctx.geo);
     if (r.unresolved) unresolvedGeography = true;
     traces.push({
@@ -257,6 +276,7 @@ export function evaluateRule(
       actual: r.describe,
       passed: r.matched,
     });
+    }
   }
 
   if (m.upstreamCommission !== undefined && m.upstreamCommission !== "any") {
