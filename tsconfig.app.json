@@ -15,11 +15,20 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Workspace packages: the app imports the engine directly rather than a
+       built artefact, so a change to a rule is visible without a build step. */
+    "paths": {
+      "@commission/engine": ["./packages/engine/src/index.ts"],
+      "@commission/parsers": ["./packages/parsers/src/index.ts"],
+      "@commission/cli": ["./packages/cli/src/reconcile.ts"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "packages/engine/src", "packages/engine/contracts", "packages/parsers/src", "packages/cli/src"],
+  "exclude": ["packages/cli/src/main.ts"]
 }

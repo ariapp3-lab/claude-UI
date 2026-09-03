@@ -3,16 +3,22 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DataPumpPage from './pages/DataPumpPage';
 import DashboardPage from './pages/DashboardPage';
+import ReconciliationPage from './commission/pages/ReconciliationPage';
+import CheckTicketPage from './commission/pages/CheckTicketPage';
+import ContractPage from './commission/pages/ContractPage';
 
 type Page = string;
 
 export default function App() {
-  const [activePage, setActivePage] = useState<Page>('Data Pump');
+  const [activePage, setActivePage] = useState<Page>('Reconciliation');
 
   const renderPage = () => {
     switch (activePage) {
-      case 'Data Pump':   return <DataPumpPage />;
-      case 'Dashboard':   return <DashboardPage />;
+      case 'Reconciliation':  return <ReconciliationPage />;
+      case 'Check a ticket':  return <CheckTicketPage />;
+      case 'Contract':        return <ContractPage />;
+      case 'Data Pump':       return <DataPumpPage />;
+      case 'Dashboard':       return <DashboardPage />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center text-slate-400">

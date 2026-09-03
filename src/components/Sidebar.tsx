@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Briefcase, Users, UserCheck, Inbox, CheckSquare,
-  Zap, Ticket, Calculator, ShieldCheck, Settings, LogOut,
+  Zap, Ticket, Calculator, ShieldCheck, Settings, LogOut, Scale, FileSearch,
   ChevronDown, Plane,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -52,6 +52,14 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       title: 'BOOKINGS',
       items: [
         { icon: <Ticket size={16} />, label: 'All Tickets' },
+      ],
+    },
+    {
+      title: 'COMMISSIONS',
+      items: [
+        { icon: <Calculator size={16} />,  label: 'Reconciliation' },
+        { icon: <FileSearch size={16} />,  label: 'Check a ticket' },
+        { icon: <Scale size={16} />,       label: 'Contract' },
       ],
     },
   ];

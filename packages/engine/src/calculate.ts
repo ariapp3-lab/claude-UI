@@ -177,6 +177,8 @@ function applyAward(
   baseOverride?: Money,
   couponCount = 1,
   couponScope?: readonly Coupon[],
+  upstreamBasis?: Money,
+  upstreamGross?: Money,
 ): AwardResult {
   const currency = ticket.currency;
   const rounding = award.rounding?.mode ?? opts.defaultRounding;
@@ -281,33 +283,50 @@ function applyAward(
       const mode = award.mode ?? "points";
 
       if (mode === "residual") {
-        // "I keep one point." Expressed this way the split cannot promise more
-        // than the carrier granted: when the carrier drops from 8 to 6, the
-        // sub-agent moves from 7 to 5 with no edit to either agreement.
-        const carrierPts = parseRate(award.denominator ?? "0");
-        const hostPts = parseRate(award.hostRetainsPoints ?? "0");
-        if (carrierPts === 0n) {
+        // "The consolidator keeps one point." A point is a point OF THE FARE,
+        // so the retention is taken on the commissionable basis rather than as
+        // a fraction of the commission. That distinction matters twice: a
+        // contract whose rate comes from a table has no single rate to divide
+        // by, and a ticket priced per half round trip has two.
+        if (!upstreamBasis) {
           return {
             commission: zero(currency),
-            notes: ["carrier rate unknown — cannot resolve a residual share"],
+            notes: ["the fare the carrier commissioned is unknown — cannot resolve a residual share"],
             nil: true,
           };
         }
-        if (hostPts >= carrierPts) {
+        // A point of the fare — but of the fare THIS document earned on. A
+        // reissue commissioned only on the fare difference must not surrender a
+        // point of the whole new fare, and a refund reversing half the
+        // commission gives back half the point. Scaling the retention by what
+        // the document actually earned against what its fare would have earned
+        // handles reissues, refunds and partial refunds with one rule.
+        const retainedFull = applyRate(upstreamBasis, award.hostRetainsPoints ?? "0", rounding);
+        const retained =
+          upstreamGross && upstreamGross.units !== 0n && upstreamGross.units !== up.units
+            ? applyFraction(retainedFull, up.units, upstreamGross.units, rounding)
+            : retainedFull;
+
+        if (up.units > 0n && retained.units >= up.units) {
           return {
             commission: zero(currency),
             notes: [
-              `host retains ${award.hostRetainsPoints} points but the carrier ` +
-                `granted only ${award.denominator} — nothing remains for the sub-agent`,
+              `the host retains ${award.hostRetainsPoints} point(s) of the fare, ` +
+                `${formatMoney(retained)}, which is the whole of the ` +
+                `${formatMoney(up)} the carrier paid — nothing remains for the sub-agent`,
             ],
             nil: true,
           };
         }
-        const subPts = carrierPts - hostPts;
-        const commission = applyFraction(up, subPts, carrierPts, rounding);
+        const commission = subtract(up, retained);
         notes.push(
-          `host retains ${award.hostRetainsPoints} of ${award.denominator} points; ` +
-            `sub-agent takes the residual`,
+          retained.units === retainedFull.units
+            ? `the host retains ${award.hostRetainsPoints} point(s) of the ` +
+                `${formatMoney(upstreamBasis)} fare, ${formatMoney(retained)}; ` +
+                "the sub-agent takes the remainder"
+            : `the host retains ${formatMoney(retained)} — ${award.hostRetainsPoints} ` +
+                `point(s) of the fare, scaled to the ${formatMoney(up)} this document ` +
+                `earned of the ${formatMoney(upstreamGross!)} its fare would carry`,
         );
         return { commission, notes, nil: isZero(commission) };
       }
@@ -786,14 +805,13 @@ function refundReversal(
       `the refunded ticket's commission of ${formatMoney(recomputed.commission)} was ` +
         "recomputed from the contract, not read off the document",
     );
-    return finishRefund(ticket, layer, recomputed.commission, r, notes);
+    return finishRefund(layer, recomputed.commission, r, notes);
   }
 
-  return finishRefund(ticket, layer, prior, r, notes);
+  return finishRefund(layer, prior, r, notes);
 }
 
 function finishRefund(
-  ticket: TicketDocument,
   layer: LayerResult & { rate?: string },
   prior: Money,
   r: NonNullable<TicketDocument["refund"]>,
@@ -1051,7 +1069,7 @@ export function calculate(
     // so "7 of 8" becomes "7 of 6" by itself when the carrier contract changes.
     const needsCarrierRate =
       rule.award.kind === "share_of_upstream" &&
-      ["points", "residual"].includes(rule.award.mode ?? "points");
+      (rule.award.mode ?? "points") === "points";
     const award: Award = needsCarrierRate
       ? { ...rule.award, denominator: rule.award.denominator ?? carrier.rate ?? "0" }
       : rule.award;
@@ -1063,6 +1081,9 @@ export function calculate(
       carrier.commission,
       undefined,
       ticket.coupons.length,
+      undefined,
+      carrier.basis,
+      carrier.gross ?? carrier.commission,
     );
     subAgent = {
       layer: "host_to_subagent",
@@ -1129,6 +1150,9 @@ export function calculate(
       carrier.commission,
       undefined,
       ticket.coupons.length,
+      undefined,
+      carrier.basis,
+      carrier.gross ?? carrier.commission,
     );
     if (isZero(r.commission)) continue;
     fees.push({
