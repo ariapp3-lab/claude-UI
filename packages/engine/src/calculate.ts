@@ -123,7 +123,11 @@ function rateFromTable(
   const classes = [...new Set(coupons.map((c) => c.rbd.toUpperCase()))];
 
   const unlisted = classes.filter((c) => table.rates[c] === undefined);
-  if (unlisted.length > 0) {
+  // A stated fallback rate answers the unlisted case outright, so those classes
+  // resolve like any other and go on to the mixed-sector check below with
+  // everything else. Only where the letter gave no fallback is an unlisted
+  // class unanswerable.
+  if (unlisted.length > 0 && table.otherwiseRate === undefined) {
     // `otherwise` governs this case and this case only: a class the airline
     // did not list. It has nothing to say about a sector booked in two.
     return {
@@ -133,7 +137,8 @@ function rateFromTable(
     };
   }
 
-  const rates = [...new Set(classes.map((c) => table.rates[c]!))];
+  const rateOf = (c: string): string => table.rates[c] ?? table.otherwiseRate!;
+  const rates = [...new Set(classes.map(rateOf))];
   if (rates.length > 1) {
     // Two classes at two different rates in one priced sector. The contract
     // says the rate follows "the RBD booked" and does not say which one that
@@ -149,7 +154,8 @@ function rateFromTable(
 
   // Several classes that happen to earn the same rate are not ambiguous.
   const rate = rates[0]!;
-  return { rate, ambiguous: false, note: `${classes.join("/")} → ${rate}%` };
+  const via = unlisted.length > 0 ? ` (${unlisted.join("/")} via the stated fallback)` : "";
+  return { rate, ambiguous: false, note: `${classes.join("/")} → ${rate}%${via}` };
 }
 
 // ---------------------------------------------------------------------------

@@ -212,6 +212,16 @@ export interface RateTable {
    * agreed to pay on. "ambiguous" queues it for a human instead.
    */
   readonly otherwise?: "nil" | "ambiguous";
+  /**
+   * A rate for classes the table does not list.
+   *
+   * How a commission letter usually reads: "J/C 10%, all others 5%". Without
+   * it such a letter has to be entered class by class, and any class nobody
+   * thought of silently earns nothing. Set this and `otherwise` no longer
+   * applies -- an unlisted class has a rate, so it is neither nil nor
+   * ambiguous.
+   */
+  readonly otherwiseRate?: string;
 }
 
 export interface RuleMatch {

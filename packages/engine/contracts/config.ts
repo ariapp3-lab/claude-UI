@@ -32,6 +32,107 @@ export interface ContractFile {
   readonly addedAt: string;
 }
 
+/** A rate that applies only on one market. */
+export interface RouteBand {
+  readonly id: string;
+  /** Country, region or airport the journey must travel from. */
+  readonly from: string;
+  readonly to: string;
+  /** Whether the reverse direction is covered too. */
+  readonly bothWays: boolean;
+  /** Class -> rate within this market. */
+  readonly rates: Readonly<Record<string, string>>;
+  /** Applied to any class this band's table does not list. Empty means none. */
+  readonly flatRate: string;
+  readonly notes: string;
+}
+
+/**
+ * How a host splits an airline's commission with ONE sub-agent.
+ *
+ * Per sub-agent, deliberately. The same host on the same airline routinely
+ * keeps two points from one agent and four from another, so a single number on
+ * the office cannot express it. `carrier` narrows a split to one airline;
+ * '*' is the default that applies where no airline-specific split exists.
+ */
+export interface SubAgentSplit {
+  readonly id: string;
+  /** Two-letter carrier code, or '*' for every carrier without its own split. */
+  readonly carrier: string;
+  /**
+   * residual  the host keeps N points and the sub-agent takes the remainder.
+   *           Self-correcting: if the airline drops the rate, the host still
+   *           keeps N and the sub-agent absorbs the change.
+   * points    the sub-agent gets N points regardless of the airline's rate.
+   *           If the airline pays less than N, the host pays out of pocket --
+   *           the engine flags that rather than silently capping it.
+   * fraction  a ratio of whatever the host earned.
+   */
+  readonly mode: 'residual' | 'points' | 'fraction';
+  /** residual: points the HOST keeps. */
+  readonly hostRetainsPoints: string;
+  /** points: points the SUB-AGENT gets. */
+  readonly points: string;
+  /** fraction: the sub-agent's share of the host's commission. */
+  readonly numerator: string;
+  readonly denominator: string;
+  readonly notes: string;
+}
+
+/** When a host fee bites. */
+export type FeeTrigger =
+  | 'non_commissionable'  // the contract established that nothing is due
+  | 'commission_below'    // commission earned is under a threshold
+  | 'exchange'            // a reissue that collected a fare difference
+  | 'even_exchange'       // a reissue that collected nothing
+  | 'refund'
+  | 'void'
+  | 'every_ticket';
+
+/**
+ * One fee a host charges a sub-agent.
+ *
+ * Separate from the split, because a fee applies whether or not the split gave
+ * the sub-agent anything -- that is the whole point of a non-commissionable fee.
+ */
+export interface SubAgentFee {
+  readonly id: string;
+  readonly label: string;
+  readonly trigger: FeeTrigger;
+  /** Limit to one carrier; empty means every carrier. */
+  readonly carrier: string;
+  /** Limit to these fare types; empty means every type. */
+  readonly fareTypes: readonly string[];
+  /** Limit to these booking classes -- how a cabin band is expressed. */
+  readonly rbds: readonly string[];
+  /** A flat charge. Use this or `rate`, not both. */
+  readonly amount: string;
+  /** A percentage charge. */
+  readonly rate: string;
+  readonly basisOf: 'commission' | 'base_fare' | 'ticket_total';
+  /** commission_below: the threshold, in the document's currency. */
+  readonly threshold: string;
+  /**
+   * False for a term the host RESERVED the right to apply rather than
+   * committed to. An unapproved fee is surfaced as exposure and never booked
+   * against the sub-agent.
+   */
+  readonly approved: boolean;
+  readonly notes: string;
+}
+
+/** The whole agreement between this office and one sub-agent. */
+export interface SubAgentAgreement {
+  readonly id: string;
+  /** Stable identifier used in the compiled rules. */
+  readonly subAgentId: string;
+  readonly name: string;
+  readonly splits: readonly SubAgentSplit[];
+  readonly fees: readonly SubAgentFee[];
+  readonly notes: string;
+  readonly files: readonly ContractFile[];
+}
+
 export interface CarrierContract {
   readonly id: string;
   /** Two-letter IATA carrier code — LY, AA, UA. */
@@ -42,6 +143,21 @@ export interface CarrierContract {
   readonly issuedTo: string;
   /** Booking class → percentage, as decimal strings. Attachment A, in effect. */
   readonly rates: Readonly<Record<string, string>>;
+  /**
+   * Rates that apply only on a particular market, above the table above.
+   *
+   * Commission letters are not always one table. A carrier commonly pays a
+   * different rate on a specific market than on everything else -- "7% on this
+   * route, 10% in this class" -- and the route rate is the more specific
+   * statement, so it wins where both could apply.
+   *
+   * `from`/`to` take a country, a region (see geo.ts) or a specific airport.
+   * `rates` narrows by class within the market; `flatRate` covers every class
+   * on it. A band with both prefers the class table and falls back to the flat
+   * rate, which is how a letter that lists two classes and says "all others"
+   * actually reads.
+   */
+  readonly routeRates?: readonly RouteBand[];
   /** Whether the carrier's own surcharge counts toward the commissionable fare. */
   readonly includeYq: boolean;
   /** A tour code the ticket must carry; empty means none is required. */
@@ -95,6 +211,12 @@ export interface StoredConsolidator {
    */
   readonly feeSchedule?: 'mst-2026';
   readonly contracts: readonly CarrierContract[];
+  /**
+   * Agreements with individual sub-agents. Where one exists for the sub-agent
+   * being priced, it governs entirely -- `retainsPoints` and `feeSchedule`
+   * above are only the fallback for an office that has not been set up yet.
+   */
+  readonly subAgents?: readonly SubAgentAgreement[];
   readonly notes: string;
 }
 
@@ -226,6 +348,62 @@ export function compileContract(
     });
   }
 
+  // Route bands sit ABOVE the general table. A letter that names a market is
+  // making the more specific statement, and specificity is what should decide
+  // -- not the order the bands happen to be stored in. Each band gets its own
+  // priority step so two bands covering one ticket never tie.
+  for (const [i, band] of (contract.routeRates ?? []).entries()) {
+    if (!band.from || !band.to) continue;
+    const hasClassRates = Object.keys(band.rates).length > 0;
+    if (!hasClassRates && !band.flatRate.trim()) continue;
+
+    rules.push({
+      ...base,
+      id: `${contract.id}-ROUTE-${band.id}`,
+      layer: 'carrier_to_host',
+      priority: 700 + i,
+      scope: contract.scope,
+      match: {
+        validatingCarrier: contract.carrier,
+        marketingCarrier: { in: [contract.carrier] },
+        market: {
+          from: band.from,
+          to: band.to,
+          direction: band.bothWays ? 'either' : 'outbound',
+        },
+        ...(contract.requiredTourCode.trim()
+          ? { tourCode: { in: [contract.requiredTourCode.trim()] } }
+          : {}),
+        fareType: { in: ['published'] },
+      },
+      award: {
+        kind: 'percent',
+        // A band with a class table AND a flat rate reads the way a letter
+        // does: these classes at these rates, everything else at the flat one.
+        ...(hasClassRates
+          ? {
+              rateTable: {
+                by: 'rbd' as const,
+                rates: { ...band.rates },
+                ...(band.flatRate.trim()
+                  ? { otherwiseRate: band.flatRate.trim() }
+                  : { otherwise: 'nil' as const }),
+              },
+            }
+          : { rate: band.flatRate.trim() }),
+        basis: contract.includeYq ? ['base_fare', 'yq'] : ['base_fare'],
+        rounding: { mode: 'half_up' },
+      },
+      source: cite(
+        `${band.from}–${band.to}${band.bothWays ? ' (both ways)' : ''}: ` +
+        (hasClassRates
+          ? Object.entries(band.rates).map(([k, v]) => `${k} ${v}%`).join(', ') +
+            (band.flatRate.trim() ? `, all others ${band.flatRate}%` : '')
+          : `${band.flatRate}%`),
+      ),
+    });
+  }
+
   rules.push({
     ...base,
     id: `${contract.id}-RATES`,
@@ -257,7 +435,160 @@ export function compileContract(
 }
 
 /** The sub-agent's side: the consolidator keeps its points, we take the rest. */
+/**
+ * Turn one stored sub-agent agreement into rules.
+ *
+ * Splits and fees compile separately because they behave differently: exactly
+ * one split applies to a document, and every matching fee applies. A fee is
+ * not a smaller split -- it bites whether or not the split paid anything, which
+ * is the entire point of a charge on a non-commissionable ticket.
+ */
+export function compileAgreement(
+  c: StoredConsolidator,
+  agreement: SubAgentAgreement,
+): Rule[] {
+  const base = {
+    layer: 'host_to_subagent' as const,
+    contractId: `${c.id}:${agreement.id}`,
+    version: 1,
+    subAgentId: agreement.subAgentId,
+    effective: undefined,
+  };
+  const cite = (clause: string) => ({
+    document: `sub-agent agreement — ${agreement.name}`,
+    clause,
+    extractedBy: 'human' as const,
+  });
+  const rules: Rule[] = [];
+
+  // --- splits ---------------------------------------------------------------
+  // A carrier-specific split is the more specific statement, so it outranks the
+  // default. Without the gap in priority the two would tie and the engine would
+  // correctly refuse to choose -- an AMBIGUOUS on every ticket.
+  for (const split of agreement.splits) {
+    const specific = split.carrier !== '*' && split.carrier !== '';
+    rules.push({
+      ...base,
+      id: `${agreement.id}-SPLIT-${split.carrier || 'ANY'}`,
+      priority: specific ? 600 : 500,
+      approved: true,
+      match: specific ? { validatingCarrier: split.carrier.toUpperCase() } : {},
+      award: {
+        kind: 'share_of_upstream',
+        mode: split.mode,
+        ...(split.mode === 'residual' ? { hostRetainsPoints: split.hostRetainsPoints } : {}),
+        ...(split.mode === 'points' ? { points: split.points } : {}),
+        ...(split.mode === 'fraction'
+          ? { numerator: split.numerator, denominator: split.denominator }
+          : {}),
+        // Fees still apply where the airline paid nothing, so the split must
+        // step aside rather than suppress the whole layer.
+        whenUpstreamNil: 'fee_only',
+        rounding: { mode: 'half_up' },
+      },
+      source: cite(describeSplit(split)),
+    });
+  }
+
+  // --- fees -----------------------------------------------------------------
+  for (const fee of agreement.fees) {
+    const match: Record<string, unknown> = {};
+    if (fee.carrier) match.validatingCarrier = fee.carrier.toUpperCase();
+    if (fee.fareTypes.length) match.fareType = { in: [...fee.fareTypes] };
+    if (fee.rbds.length) match.rbd = { in: [...fee.rbds] };
+
+    switch (fee.trigger) {
+      case 'non_commissionable':
+        // Gated on the contract having ESTABLISHED nothing is due. A document
+        // nobody could price has established nothing, and charging off it would
+        // be inventing a fee.
+        match.upstreamCommission = 'nil';
+        match.documentType = { in: ['TKT'] };
+        break;
+      case 'commission_below':
+        match.upstreamCommission = 'nonzero';
+        match.upstreamCommissionBelow = fee.threshold || '0.00';
+        break;
+      case 'exchange':
+        match.documentType = { in: ['EXCH'] };
+        match.additionalCollection = 'nonzero';
+        break;
+      case 'even_exchange':
+        match.documentType = { in: ['EXCH'] };
+        match.additionalCollection = 'zero';
+        break;
+      case 'refund':
+        match.documentType = { in: ['RFND'] };
+        break;
+      case 'void':
+        match.documentType = { in: ['VOID'] };
+        break;
+      case 'every_ticket':
+        break;
+    }
+
+    rules.push({
+      ...base,
+      id: `${agreement.id}-FEE-${fee.id}`,
+      priority: 900,
+      approved: fee.approved,
+      match: match as Rule['match'],
+      award: {
+        kind: 'fee',
+        ...(fee.rate ? { rate: fee.rate, basisOf: fee.basisOf } : { amount: fee.amount || '0' }),
+        currency: 'USD',
+        per: 'ticket',
+        direction: 'debit_subagent',
+        rounding: { mode: 'half_up' },
+      },
+      source: cite(fee.label),
+    });
+  }
+
+  return rules;
+}
+
+function describeSplit(s: SubAgentSplit): string {
+  const who = s.carrier === '*' || !s.carrier ? 'all carriers' : s.carrier.toUpperCase();
+  switch (s.mode) {
+    case 'residual':
+      return `${who}: host retains ${s.hostRetainsPoints} point(s)`;
+    case 'points':
+      return `${who}: sub-agent receives ${s.points} point(s)`;
+    default:
+      return `${who}: sub-agent receives ${s.numerator}/${s.denominator} of commission`;
+  }
+}
+
+/** A blank agreement, for the UI's "add sub-agent" action. */
+export function newAgreement(subAgentId: string, name: string): SubAgentAgreement {
+  return {
+    id: newId('sa'),
+    subAgentId,
+    name,
+    splits: [{
+      id: newId('sp'),
+      carrier: '*',
+      mode: 'residual',
+      hostRetainsPoints: '1.00',
+      points: '0.00',
+      numerator: '1',
+      denominator: '1',
+      notes: '',
+    }],
+    fees: [],
+    notes: '',
+    files: [],
+  };
+}
+
 export function compileSubAgentRules(c: StoredConsolidator, subAgentId: string): Rule[] {
+  // A stored agreement for this sub-agent governs entirely. The office-level
+  // retention and the built-in schedule below are only what an office that has
+  // not been set up yet falls back to.
+  const agreement = c.subAgents?.find((a) => a.subAgentId === subAgentId);
+  if (agreement) return compileAgreement(c, agreement);
+
   if (c.feeSchedule === 'mst-2026') {
     // The signed schedule, rebound to whichever sub-agent is being priced. Its
     // own approval flags are preserved: the clauses MST reserved the right to
