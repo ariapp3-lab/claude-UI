@@ -79,6 +79,14 @@ export default function ReconciliationPage() {
 
       <FolderSource count={batch.fileCount} />
 
+      {result.currencies.length > 1 && (
+        <Note tone="warning" title="This batch holds more than one currency.">
+          {result.currencies.map((c) => `${c.code} ${c.documents.toLocaleString()}`).join(', ')}.
+          Amounts in different currencies cannot be added, so every total below covers{' '}
+          {result.totals.currency} only. The other documents are priced and listed — just not summed.
+        </Note>
+      )}
+
       <Note tone="warning" title="Clause 8 — commission may be claimed at ticketing only.">
         No retroactive settlement is made for commission not taken at the time of
         ticketing, so anything below must be corrected before this period is filed.
@@ -87,7 +95,10 @@ export default function ReconciliationPage() {
       <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(178px,1fr))]">
         <StatCard label="Documents priced" value={String(t.documents)}
                   note={`${batch.fileCount.toLocaleString()} source file(s)`} />
-        <StatCard label="Fare value" value={money(t.fareValue)} note="USD, base fare" />
+        <StatCard label="Fare value" value={money(t.fareValue)}
+                  note={result.currencies.length > 1
+                    ? `${t.currency} only — ${t.counted.toLocaleString()} of ${t.documents.toLocaleString()}`
+                    : `${t.currency}, base fare`} />
         <StatCard label="Commission claimed" value={money(t.claimed)} />
         {t.forfeited.units > 0n && (
           <StatCard label="Forfeited to an exclusion" value={money(t.forfeited)}

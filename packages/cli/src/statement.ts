@@ -90,7 +90,12 @@ function key(ticketNumber: string): string {
 }
 
 export function settle(input: SettleInput): Settlement {
-  const currency = input.currency ?? "USD";
+  const counts = new Map<string, number>();
+  for (const t of input.tickets) counts.set(t.currency, (counts.get(t.currency) ?? 0) + 1);
+  const currency =
+    input.currency ??
+    [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ??
+    "USD";
   const warnings: string[] = [];
   const rows: SettlementRow[] = [];
 
@@ -225,8 +230,14 @@ export function settle(input: SettleInput): Settlement {
   const size = (r: SettlementRow) => (r.variance.units < 0n ? -r.variance.units : r.variance.units);
   rows.sort((a, b) => rank[a.severity] - rank[b.severity] || Number(size(b) - size(a)));
 
+  // Amounts in another currency are left out of the totals rather than added
+  // to them; a settlement that quietly mixes currencies is worse than one that
+  // covers less.
   const sum = (pick: (r: SettlementRow) => Money | null) => ({
-    units: rows.reduce((a, r) => a + (pick(r)?.units ?? 0n), 0n),
+    units: rows.reduce((a, r) => {
+      const m = pick(r);
+      return a + (m && m.currency === currency ? m.units : 0n);
+    }, 0n),
     currency,
   });
 

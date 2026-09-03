@@ -262,10 +262,29 @@ export function parseAmadeusAir(text: string): AirParseResult {
   // on an issue but K-B or K-F on an exchange, so the shape varies.
   const ksLine = find(/^KS-/) ?? find(/^K-[A-Z][A-Z]{3}\d/);
   const knLine = find(/^KN-/);
-  const currency = "USD";
 
-  const sellingBase = ksLine ? parseAmountIn(fields(ksLine)[0] ?? "") : null;
-  const netBase = knLine ? parseAmountIn(fields(knLine)[0] ?? "") : null;
+  // Read from the fare, never assumed. A document priced in EUR whose amounts
+  // are labelled USD is not a display problem — every sum against it fails, and
+  // a single such document used to take the whole batch down.
+  const currency = (() => {
+    for (const line of [ksLine, knLine, find(/^K[SNF]T[BF];/)]) {
+      const m = line ? /([A-Z]{3})\s*-?[\d,]+\.?\d*/.exec(line) : null;
+      if (m) return m[1];
+    }
+    warnings.push("no currency could be read from the fare; USD assumed");
+    return "USD";
+  })();
+
+  const inFareCurrency = (m: Money | null, label: string): Money | null => {
+    if (!m) return null;
+    if (m.currency === currency) return m;
+    warnings.push(`${label} is in ${m.currency} but the fare is in ${currency}; it is ignored`);
+    return null;
+  };
+  const sellingBase = inFareCurrency(
+    ksLine ? parseAmountIn(fields(ksLine)[0] ?? "") : null, "the selling fare");
+  const netBase = inFareCurrency(
+    knLine ? parseAmountIn(fields(knLine)[0] ?? "") : null, "the net fare");
   if (!sellingBase && !netBase) warnings.push("no fare amounts (KS-/KN-/K- elements) found");
   const baseFare = sellingBase ?? netBase ?? money(0n, currency);
 
@@ -277,7 +296,17 @@ export function parseAmadeusAir(text: string): AirParseResult {
   if (tbLine) {
     for (const field of tbLine.split(";").slice(1)) {
       const t = parseTaxField(field, warnings);
-      if (t) taxes.push(t);
+      if (!t) continue;
+      // A tax in a different currency from the fare cannot be added to it. It
+      // is reported and left out rather than silently coerced.
+      if (t.amount.currency !== currency) {
+        warnings.push(
+          `tax ${t.code} is in ${t.amount.currency} but the fare is in ${currency}; ` +
+            "it is excluded from the total",
+        );
+        continue;
+      }
+      taxes.push(t);
     }
   } else {
     warnings.push("no itemised tax breakdown (KSTB/KNTB/KFTB/KFTF) found; XT cannot be exploded");
@@ -286,9 +315,8 @@ export function parseAmadeusAir(text: string): AirParseResult {
   const taxTotal = sum(taxes.map((t) => t.amount), currency);
   const total = { units: baseFare.units + taxTotal.units, currency };
 
-  const statedTotal = ksLine
-    ? parseAmountIn(fields(ksLine).slice(1).join(";"))
-    : null;
+  const statedTotal = inFareCurrency(
+    ksLine ? parseAmountIn(fields(ksLine).slice(1).join(";")) : null, "the stated total");
   if (statedTotal && statedTotal.units !== total.units) {
     warnings.push(
       `computed total ${total.units} does not match the file's stated total ${statedTotal.units}`,
@@ -310,7 +338,7 @@ export function parseAmadeusAir(text: string): AirParseResult {
   const atcLine = find(/^ATC-/);
   const atc: AtcBlock | null = (() => {
     if (!atcLine) return null;
-    const vals = fields(atcLine).map(parseAmountIn);
+    const vals = fields(atcLine).map((v) => inFareCurrency(parseAmountIn(v), "an ATC amount"));
     const block: AtcBlock = {
       originalBase: vals[0] ?? null,
       newBase: vals[1] ?? null,

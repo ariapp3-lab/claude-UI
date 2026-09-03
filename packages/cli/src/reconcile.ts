@@ -73,6 +73,10 @@ export interface Finding {
 
 export interface BatchTotals {
   readonly documents: number;
+  /** The currency these totals are expressed in. */
+  readonly currency: string;
+  /** Documents counted in these totals; fewer than `documents` on a mixed batch. */
+  readonly counted: number;
   readonly fareValue: Money;
   readonly claimed: Money;
   readonly entitled: Money;
@@ -85,9 +89,21 @@ export interface BatchTotals {
   readonly noRevenue: number;
 }
 
+export interface CurrencyCount {
+  readonly code: string;
+  readonly documents: number;
+}
+
 export interface BatchResult {
   readonly findings: readonly Finding[];
+  /** Totals are in `totals.currency` — see `currencies`. */
   readonly totals: BatchTotals;
+  /**
+   * Every currency present, most documents first. A batch can mix them, and
+   * amounts in different currencies cannot be added: the totals cover the
+   * first of these and the rest are listed so nothing is silently omitted.
+   */
+  readonly currencies: readonly CurrencyCount[];
   readonly byReason: ReadonlyMap<Reason, number>;
   readonly warnings: readonly string[];
 }
@@ -286,7 +302,27 @@ export function reconcile(
   rules: readonly Rule[],
   warnings: readonly string[] = [],
 ): BatchResult {
-  const currency = inputs[0]?.ticket.currency ?? "USD";
+  // The batch's own currency, taken from the documents rather than assumed.
+  // A folder can hold EUR and USD side by side, and adding them is not a
+  // rounding question — it is arithmetic that has no answer.
+  const counts = new Map<string, number>();
+  for (const i of inputs) {
+    counts.set(i.ticket.currency, (counts.get(i.ticket.currency) ?? 0) + 1);
+  }
+  const currencies: CurrencyCount[] = [...counts.entries()]
+    .map(([code, documents]) => ({ code, documents }))
+    .sort((a, b) => b.documents - a.documents || a.code.localeCompare(b.code));
+  const currency = currencies[0]?.code ?? "USD";
+
+  const allWarnings = [...warnings];
+  if (currencies.length > 1) {
+    allWarnings.unshift(
+      `this batch holds more than one currency (${currencies
+        .map((c) => `${c.code} ${c.documents}`)
+        .join(", ")}); the totals cover ${currency} only`,
+    );
+  }
+
   const findings: Finding[] = [];
 
   for (const { ticket, claimed: rawClaimed, markup } of inputs) {
@@ -364,8 +400,13 @@ export function reconcile(
     (a, b) => rank[a.severity] - rank[b.severity] || Number(stake(b) - stake(a)),
   );
 
+  // Only amounts already in the batch currency are summed; the rest are
+  // counted in `currencies` and reported, never coerced.
   const pick = (p: (x: Finding) => Money | null) =>
-    sum(sorted.map(p).filter((m): m is Money => m !== null), currency);
+    sum(
+      sorted.map(p).filter((m): m is Money => m !== null && m.currency === currency),
+      currency,
+    );
 
   const byReason = new Map<Reason, number>();
   for (const x of sorted) byReason.set(x.reason, (byReason.get(x.reason) ?? 0) + 1);
@@ -373,9 +414,12 @@ export function reconcile(
   return {
     findings: sorted,
     byReason,
-    warnings,
+    currencies,
+    warnings: allWarnings,
     totals: {
       documents: sorted.length,
+      currency,
+      counted: sorted.filter((x) => x.baseFare.currency === currency).length,
       fareValue: pick((x) => x.baseFare),
       claimed: pick((x) => x.claimed),
       entitled: pick((x) => (x.entitled.units > 0n ? x.entitled : null)),
