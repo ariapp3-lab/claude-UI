@@ -482,6 +482,30 @@ export interface Waterfall {
   /** What the sub-agent is owed: their share less fees charged. */
   readonly netToSubAgent: Money;
 
+  /**
+   * The agent's own margin on a net or bulk fare: selling fare less net fare.
+   * Zero on a published fare, where there is no margin to add.
+   */
+  readonly markup: Money;
+
+  /**
+   * WHAT THE CONSOLIDATOR MUST REMIT — the cheque.
+   *
+   * The money for the whole ticket, markup included, is collected under the
+   * consolidator's own accreditation and settles to them. So the markup is not
+   * money the agent already holds; it is money the consolidator is holding on
+   * the agent's behalf and has to pay over. From the agent's side there is one
+   * figure, not three, and this is it:
+   *
+   *     markup + commission share - fees charged
+   *
+   * This, not `netToSubAgent`, is what a statement line has to be reconciled
+   * against. Comparing a statement against the commission alone reports a bulk
+   * fare as paid-where-none-was-due on every marked-up ticket, because the
+   * commission is zero and the cheque is not.
+   */
+  readonly payable: Money;
+
   /** Anything a human must look at before this figure is trusted. */
   readonly flags: readonly {
     readonly code: Outcome | "REVIEW";

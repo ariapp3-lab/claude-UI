@@ -7,8 +7,8 @@ import type { Rule } from '@commission/engine';
 import { SUB_AGENT_ID } from '../../packages/engine/contracts/subagent-aappel-2026';
 import type { DetectedConsolidator } from './data';
 import {
-  type Config, type StoredConsolidator, carrierRulesFor, compileSubAgentRules,
-  loadConfig, saveConfig,
+  type Config, type StoredConsolidator, DEFAULT_TENANT, carrierRulesFor,
+  compileSubAgentRules, loadConfig, saveConfig,
 } from './store';
 
 /**
@@ -77,8 +77,8 @@ export function WorkspaceProvider(
 
 /** So the app still renders if every consolidator has been deleted. */
 const EMPTY: StoredConsolidator = {
-  id: '', name: 'No consolidator', iata: '', retainsPoints: '0.00',
-  contracts: [], notes: '',
+  id: '', name: 'No consolidator', tenantId: DEFAULT_TENANT, iata: '',
+  retainsPoints: '0.00', contracts: [], notes: '',
 };
 
 export function useWorkspace(): Workspace {

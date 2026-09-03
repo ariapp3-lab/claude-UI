@@ -131,10 +131,14 @@ describe('checking a statement', () => {
   it('says where the statement and the contract disagree', () => {
     const r = checkStatement(csv, files, opts);
     expect(r.ok).toBe(true);
+    // A published S-class fare with no tour code: El Al forfeits the
+    // commission, and the schedule then charges $10 for a non-commissionable
+    // ticket. So the consolidator owes -10.00 on it and paid 50.00 — an
+    // overpayment of 60.00, not a payment where nothing was due.
     expect(r.rows[0]).toMatchObject({
       ticketNumber: '114-7503646565',
-      reason: 'PAID_WHERE_NONE_DUE',
-      expected: '0.00',
+      reason: 'OVER_PAID',
+      expected: '-10.00',
       stated: '50.00',
     });
   });

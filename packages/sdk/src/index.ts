@@ -18,7 +18,7 @@
  */
 
 import {
-  add, calculate, formatMoney, journeyDestination, DEFAULT_GEO,
+  calculate, formatMoney, journeyDestination, DEFAULT_GEO,
   type LayerResult, type Rule, type TicketDocument, type Waterfall,
 } from "@commission/engine";
 import {
@@ -278,9 +278,8 @@ export function priceAirFile(airText: string, opts: PriceOptions): PriceResult {
         amount: formatMoney(fee.amount),
       })),
       netToSubAgent: w && subAgentId ? formatMoney(w.netToSubAgent) : null,
-      markup: formatMoney(p.markup),
-      totalToSubAgent:
-        w && subAgentId ? formatMoney(add(w.netToSubAgent, p.markup)) : null,
+      markup: w ? formatMoney(w.markup) : formatMoney(p.markup),
+      totalToSubAgent: w && subAgentId ? formatMoney(w.payable) : null,
 
       prefill:
         w && payable && isSafeToPrefill(w, subAgentId ? (w.subAgent ?? w.carrier) : w.carrier)

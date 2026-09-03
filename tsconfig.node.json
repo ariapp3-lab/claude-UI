@@ -14,11 +14,24 @@
     "moduleDetection": "force",
     "noEmit": true,
 
+    /* The Node entrypoints import the workspace packages by name, exactly as
+       the app does. */
+    "paths": {
+      "@commission/engine": ["./packages/engine/src/index.ts"],
+      "@commission/parsers": ["./packages/parsers/src/index.ts"],
+      "@commission/cli": ["./packages/cli/src/reconcile.ts"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  /* Workspace packages, same as the app project: these entrypoints import the
+     engine directly rather than a built artefact. */
+  "include": [
+    "vite.config.ts", "vite.artifact.config.ts", "vite.sdk.config.ts",
+    "packages/cli/src/main.ts", "packages/sdk/src/server.ts"
+  ]
 }

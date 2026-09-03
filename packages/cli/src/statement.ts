@@ -128,7 +128,13 @@ export function settle(input: SettleInput): Settlement {
       warnings.push(`${ticket.ticketNumber} could not be priced: ${(e as Error).message}`);
       continue;
     }
-    const expected = w.subAgent?.commission ?? zero(currency);
+    // What the consolidator must REMIT, not what the airline paid in
+    // commission. The whole ticket settles under their accreditation, markup
+    // included, so the cheque is markup + share - fees. Comparing a statement
+    // against the commission alone reports every marked-up bulk fare as paid
+    // where nothing was due, because its commission is zero and its cheque
+    // is not.
+    const expected = w.subAgent ? w.payable : zero(currency);
     const line = byLine.get(k);
 
     // Named by the turnaround: a round trip is JFK–TLV, not JFK–JFK.

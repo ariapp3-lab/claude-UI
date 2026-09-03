@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc -b && tsc --noEmit -p packages/engine/tsconfig.json",
+    "typecheck": "tsc --build",
     "reconcile": "tsx packages/cli/src/main.ts"
   },
   "dependencies": {

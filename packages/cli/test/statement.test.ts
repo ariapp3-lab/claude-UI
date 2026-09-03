@@ -136,18 +136,28 @@ describe('where the statement and the contract disagree', () => {
   });
 
   it('flags a ticket left off the statement entirely', () => {
-    // 114-7507682876 is in the batch and absent from the statement. It is a
-    // bulk fare and earns nothing, so this is agreement rather than a
-    // shortfall — and the two have to be told apart.
+    // 114-7507682876 is in the batch and absent from the statement.
+    //
+    // It is a bulk fare, so it earns no commission — but the consolidator
+    // collected the whole ticket under their own accreditation, markup and
+    // all, and has to remit it. Absent from the statement, that cheque has
+    // not been paid, so it is a genuine shortfall.
+    //
+    // Reading it as agreement because the COMMISSION is nil is the mistake
+    // this row exists to catch: it would write off the markup on every bulk
+    // ticket in the folder, which is where most of the money is.
     const r = row('7507682876');
-    expect(r.reason).toBe('CORRECTLY_NIL');
+    expect(r.reason).toBe('NOT_ON_STATEMENT');
     expect(r.statementRow).toBeNull();
+    expect(r.expected.units).toBeGreaterThan(0n);
   });
 });
 
 describe('totals a person can act on', () => {
   it('separates what was short-paid from what was withheld', () => {
-    expect(f(result.totals.expected)).toBe('89.76');
+    // Expected is what the consolidator must REMIT across the batch — markup
+    // included — not the commission alone.
+    expect(f(result.totals.expected)).toBe('3245.26');
     expect(f(result.totals.shortPaid)).toBe('0.00');
     expect(f(result.totals.unexplainedDeductions)).toBe('-35.00');
     expect(f(result.totals.overPaid)).toBe('0.00');

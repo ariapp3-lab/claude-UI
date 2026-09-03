@@ -1043,6 +1043,13 @@ export function calculate(
     });
   }
 
+  // Selling fare less net fare. Only a net or bulk fare carries a net fare at
+  // all; on a published fare the two are the same number and the margin is nil.
+  const markup =
+    ticket.netFare && !isZero(ticket.netFare)
+      ? subtract(ticket.baseFare, ticket.netFare)
+      : zero(currency);
+
   if (!subAgentId) {
     return {
       ticketNumber: ticket.ticketNumber,
@@ -1054,6 +1061,10 @@ export function calculate(
       fees: [],
       hostSpread: carrier.commission,
       netToSubAgent: zero(currency),
+      markup,
+      // Priced as the host, there is no sub-agent to remit to. The markup is
+      // still reported, because it is a fact about the ticket either way.
+      payable: zero(currency),
       flags,
     };
   }
@@ -1205,6 +1216,8 @@ export function calculate(
     sum(fees.map((f) => f.amount), currency),
   );
 
+  const payable = add(netToSubAgent, markup);
+
   return {
     ticketNumber: ticket.ticketNumber,
     currency,
@@ -1216,6 +1229,8 @@ export function calculate(
     fees,
     hostSpread,
     netToSubAgent,
+    markup,
+    payable,
     flags,
   };
 }
