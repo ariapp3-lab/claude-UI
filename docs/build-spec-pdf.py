@@ -18,6 +18,7 @@ RULE = colors.HexColor("#d4dae0")
 ACCENT = colors.HexColor("#0f5c4a")
 BAND = colors.HexColor("#eef2f4")
 WARN = colors.HexColor("#8a4b12")
+GOOD = colors.HexColor("#14663f")
 
 ss = getSampleStyleSheet()
 
@@ -79,16 +80,21 @@ def code(lines, gap=10):
     return [t, Spacer(1, gap)]
 
 
-def note(text, gap=10):
-    p = Paragraph(text, S("N", fontName="Helvetica", fontSize=8.8, leading=12.8, textColor=WARN))
+def callout(text, tone=WARN, gap=10):
+    fill = colors.HexColor("#fdf5ec") if tone is WARN else colors.HexColor("#eef5f1")
+    edge = colors.HexColor("#c98432") if tone is WARN else ACCENT
+    p = Paragraph(text, S("N", fontName="Helvetica", fontSize=8.8, leading=12.8, textColor=tone))
     t = Table([[p]], colWidths=[6.9 * inch], hAlign="LEFT")
     t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fdf5ec")),
-        ("LINEBEFORE", (0, 0), (0, -1), 2.2, colors.HexColor("#c98432")),
+        ("BACKGROUND", (0, 0), (-1, -1), fill),
+        ("LINEBEFORE", (0, 0), (0, -1), 2.2, edge),
         ("LEFTPADDING", (0, 0), (-1, -1), 10), ("RIGHTPADDING", (0, 0), (-1, -1), 10),
         ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
     ]))
     return [t, Spacer(1, gap)]
+
+
+note = callout
 
 
 def footer(canvas, doc):
@@ -118,24 +124,29 @@ F += P(
     "This module answers one question on every ticket: <b>how much will the host agency's "
     "cheque be, and is it right.</b> It reads the ticket, finds the contract that governs it, "
     "computes the figure, and pre-fills the commission field. Once a week the host's statement "
-    "is uploaded and the module reconciles what was actually paid against what was owed.")
+    "is uploaded and the module reconciles what was paid against what was owed.")
 
 F += P(
     "It is built as a <b>pure function</b>: text in, JSON out. No database calls, no clock, no "
     "network. The same ticket always produces the same number, and the same code runs inside "
     "the CRM, in a queue worker, in an Edge Function, and in tests.")
 
+F += P(
+    "Everything here has been checked against real documents - two signed contracts, a real "
+    "weekly statement, and real AIR files. Where a rule is inferred rather than stated, it says "
+    "so. Where a real document contradicted an earlier assumption, the contradiction is recorded "
+    "rather than quietly corrected, because the same mistake is easy to make twice.")
+
 F += P("Scope for the first build", H1)
 F += P(
     "<b>EL AL (LY) under Main St. Travel only.</b> That is where the volume is, and one airline "
-    "under one host is enough to prove the whole path end to end. Everything below is designed "
-    "to take more hosts and more airlines without a rewrite - the data model already keys on "
-    "them - but do not build ten before one works.")
+    "under one host proves the whole path end to end. The data model already keys on tenant, "
+    "host and airline, so a second host is new rows rather than a rewrite - but do not build ten "
+    "before one works.")
 
 # --------------------------------------------------------------------- 1
 F += P("1 - The three figures", H1)
-F += P("This is the heart of the module. Every ticket produces three numbers, in this order, "
-       "and they must not be collapsed into one.")
+F += P("Every ticket produces three numbers, in this order. They must not be collapsed into one.")
 
 F += table([
     ["#", "Figure", "What it is"],
@@ -156,16 +167,15 @@ F += code(["    cheque  =  commission  +  markup  -  fees"])
 F += P(
     "<b>The markup belongs in the cheque.</b> The whole ticket, markup included, is collected "
     "under the host's accreditation and settles to them - so the markup is not money the agent "
-    "already holds, it is money the host is holding on the agent's behalf and has to remit. "
-    "From the agent's side there is one figure, and this is it.")
+    "already holds, it is money the host is holding on the agent's behalf and has to remit. From "
+    "the agent's side there is one figure, and this is it.")
 
 F += note(
-    "<b>This is the single most expensive thing to get wrong.</b> Reconciling a statement "
-    "against the COMMISSION alone reports every marked-up bulk ticket as "
-    "paid-where-nothing-was-due, and a bulk ticket missing from the statement as agreement "
-    "rather than a shortfall. On the sample batch that is the difference between an expected "
-    "total of $89.76 and $3,245.26 - the gap is markup being silently written off. Reconcile "
-    "against the cheque.")
+    "<b>The single most expensive thing to get wrong.</b> Reconciling a statement against the "
+    "COMMISSION alone reports every marked-up bulk ticket as paid-where-nothing-was-due, and a "
+    "bulk ticket missing from the statement as agreement rather than a shortfall. On the sample "
+    "batch that is the difference between an expected total of $89.76 and $3,245.26 - the gap is "
+    "markup being silently written off. Reconcile against the cheque.")
 
 F += P("Worked, on real tickets", H2)
 F += table([
@@ -176,14 +186,14 @@ F += table([
     ["exchange", "net", "3,707.00", "0.00", "-25.00", "0.00", "<b>-25.00</b>"],
 ], [1.35 * inch, 0.72 * inch, 0.85 * inch, 1.0 * inch, 0.78 * inch, 0.85 * inch, 0.85 * inch])
 
-F += P("Note the third row: a ticket can be <b>negative</b>. It earned no commission and still "
-       "cost a fee. That is a real outcome, not an error, and the UI has to show it.")
+F += P("A ticket can be <b>negative</b>: it earned no commission and still cost a fee. That is a "
+       "real outcome, not an error, and the UI has to show it.")
 
 # --------------------------------------------------------------------- 2
 F += P("2 - Net fares: the rule that governs them", H1)
 F += P("On a net fare the airline files a fare it will accept and lets the agent sell above it. "
-       "The agent's margin is their commission on that ticket. The host's fee for such a ticket "
-       "follows one principle:")
+       "The agent's margin is their commission on that ticket. The host's fee follows one "
+       "principle:")
 
 F += note(
     "<b>The host cannot be worse off because the agent chose to issue net.</b> Whatever the host "
@@ -192,8 +202,7 @@ F += note(
     "host anything.")
 
 F += P("So the host's fee on a net fare is <b>the higher of</b> the point they keep on a "
-       "published fare, and a flat figure by cabin. The cabin figure is a FLOOR, not the fee - "
-       "it applies only to fares small enough that a point of them comes to very little.")
+       "published fare and a flat figure by cabin. The cabin figure is a FLOOR, not the fee.")
 
 F += code([
     "  net fare fee = max( published-fare point x base fare,  cabin floor )",
@@ -210,17 +219,18 @@ F += P("The markup ceiling", H2)
 F += P(
     "The airline permits a markup up to a limit, which varies by fare. Where that limit is known "
     "and configured, the module reports the markup as a percentage and the <b>headroom</b> left "
-    "under it. Headroom matters because it is the one loss no statement can show: marking up 10% "
-    "where 25% was permitted leaves money behind, nobody short-paid anything, and reconciliation "
-    "will say AGREES. An unconfigured ceiling reports as <b>unknown</b>, never as zero.")
+    "under it. Headroom is the one loss no statement can show: marking up 10% where 25% was "
+    "permitted leaves money behind, nobody short-paid anything, and reconciliation says AGREES. "
+    "An unconfigured ceiling reports as <b>unknown</b>, never as zero.")
 
 F += P("Reading the markup from the file", H2)
 F += P(
     "Amadeus records it in the FM element as <code>FM*G*679.75A</code>. Those digits match the "
     "commission-amount pattern exactly, so <b>the <code>*G*</code> must be tested first</b> - "
     "otherwise the agent's own margin is filed as commission the host owes, and every marked-up "
-    "ticket reports a shortfall. Cross-check it against selling base less net base "
-    "(<code>KS-</code> less <code>KN-</code>); the two are independent and must agree.")
+    "ticket reports a shortfall. Cross-check against selling base less net base "
+    "(<code>KS-</code> less <code>KN-</code>): the two are independent and must agree. On both "
+    "real records they agree exactly.")
 
 # --------------------------------------------------------------------- 3
 F += P("3 - Finding the contract", H1)
@@ -229,9 +239,6 @@ F += P(
     "contract, not the agency</b> - one host commonly holds several numbers with different rates "
     "on the same airline. The MST agreement says so itself: \"PNRs created under one of MST's "
     "affiliate offices in order to access higher contracted commission levels.\"")
-
-F += P("The chain is walked <b>in order</b> and stops at the first step that fails. Each stop "
-       "reports which step it was, because they are four different things to do about it.")
 
 F += table([
     ["#", "Step", "If it fails", "What that means"],
@@ -249,35 +256,40 @@ F += P("Steps 1-5 are the <b>fallback</b>: no contract could be chosen, so no fi
 
 F += note(
     "<b>NIL and NO_RULE must never merge.</b> NIL means a clause asserted zero - EL AL forfeits "
-    "the commission when the mandatory tour code is missing, and that is a settled answer. "
-    "NO_RULE means nobody has worked it out. Both display as $0.00; only NIL may be written into "
-    "a field. Merging them books zero on tickets that were actually owed money, which is the "
-    "failure this module exists to prevent.")
+    "commission when the mandatory tour code is missing, and that is a settled answer. NO_RULE "
+    "means nobody has worked it out. Both display as $0.00; only NIL may be written into a "
+    "field. Merging them books zero on tickets that were actually owed money.")
+
+F += P("The folder is not all yours", H2)
+F += P(
+    "In a 15-file sample drawn from the live airfile folder, <b>9 belonged to a different "
+    "agency</b> - IATA 33770903, a separate travel business, with its own passengers and its own "
+    "contracts. Any total computed across the folder without filtering by IATA is wrong, and "
+    "wrong in a direction that looks plausible. <b>Filter by IATA before anything else.</b>")
 
 F += P("Bootstrapping from the files", H2)
 F += P(
     "<code>discoverFromFiles()</code> groups incoming documents by IATA and carrier and reports "
-    "what it sees - ticket counts, date ranges, fare types, tour codes, and the rates actually "
-    "claimed per booking class - flagging each group as configured or not. Use it to populate "
-    "the contract table from history rather than typing it blind.")
+    "ticket counts, date ranges, fare types, tour codes, and the rates actually claimed per "
+    "booking class - flagging each group as configured or not. Use it to populate the contract "
+    "table from history, and to see at a glance which IATA numbers are in the folder.")
 
 F += P(
     "It proposes a rate only where <b>every</b> ticket in a class agreed on one. Where they "
     "disagree it reports the disagreement instead: what an agent claimed is evidence, not a "
     "contract, and seeding a table with the more popular of two wrong answers would encode the "
-    "mistake as policy and then reconcile against it forever.")
+    "mistake as policy and reconcile against it forever.")
 
 # --------------------------------------------------------------------- 4
 F += P("4 - Data model", H1)
-F += P("Everything is editable, and contracts are uploadable as files. Scoped by tenant "
-       "throughout.")
+F += P("Everything is editable, contracts are uploadable, and every query is scoped by tenant.")
 
 F += table([
     ["Table", "Key columns"],
     ["<b>tenant</b>", "id, name. Every query below is scoped by tenant_id."],
     ["<b>office</b>",
-     "id, tenant_id, <b>iata</b> (the join key, unique per tenant), name, agency (label "
-     "grouping several offices under one host), retains_points, fee_schedule"],
+     "id, tenant_id, <b>iata</b> (the join key, unique per tenant), name, agency (label grouping "
+     "several offices under one host), retains_points, fee_schedule"],
     ["<b>carrier_contract</b>",
      "id, office_id, <b>carrier</b>, issued_from, issued_to, rates (JSON: class -&gt; percent), "
      "include_yq, required_tour_code, origin_in, scope, max_markup_percent, markup_basis, files[]"],
@@ -288,9 +300,9 @@ F += table([
      "One row per passenger per document: ticket number, type, issue date, carrier, iata, base "
      "fare, net fare, taxes, coupons, fare type, tour code, plus the computed commission, fees, "
      "markup, cheque and outcome."],
-    ["<b>statement_row</b>",
-     "One row per line of an uploaded statement: ticket number, amount paid, fees withheld, "
-     "statement date."],
+    ["<b>statement_line</b>",
+     "One row per line of an uploaded statement: <b>invoice number</b>, ticket number (usually "
+     "null), passenger, vendor, invoice date, travel date, itinerary, signed amount, remark."],
 ], [1.4 * inch, 5.5 * inch])
 
 F += note(
@@ -299,16 +311,11 @@ F += note(
     "encoded but left unapproved, so the engine surfaces them as exposure rather than booking "
     "them as certainty. An unapproved clause never spends.")
 
-F += P("Adding a second host later", H2)
-F += P("Nothing structural changes: a new host is new <code>office</code> rows (one per IATA "
-       "number) with their own <code>carrier_contract</code> and <code>host_agreement</code>. "
-       "Resolution already keys on tenant + IATA + carrier + date, so tickets route themselves.")
-
 # --------------------------------------------------------------------- 5
 F += P("5 - The pre-fill rule", H1)
 F += P("The module returns <code>prefill</code>: a decimal string, or <code>null</code>. "
        "<b>Bind it straight to the field.</b> The decision about whether a number is safe to "
-       "write has already been made - the caller does not repeat it.")
+       "write has already been made.")
 
 F += table([
     ["Outcome", "prefill", "Meaning"],
@@ -341,9 +348,106 @@ F += P("Every result carries <code>explanation</code>, <code>clause</code> and "
 
 # --------------------------------------------------------------------- 6
 F += P("6 - The weekly statement", H1)
-F += P("Uploaded as CSV or Excel. Each row is matched to a ticket by ticket number and lands in "
-       "exactly one of eight states. Nothing is dropped: a row matching no ticket, and a ticket "
-       "on no row, are both findings. <b>Compare against the cheque, not the commission.</b>")
+F += P(
+    "This section was rewritten after reading a real one. Every assumption the first version "
+    "made about the format was wrong.")
+
+F += note(
+    "<b>It is not a commission statement. It is an accounts ledger.</b> One line per thing the "
+    "host billed or credited, and the balance at the foot is the payout. On the statement read "
+    "here: 149 lines, 141 invoices, charges $1,643.00, credits -$32,162.65, "
+    "<b>payout -$30,519.65</b>.")
+
+F += P("Three facts about the format", H2)
+F += table([
+    ["#", "Fact", "Consequence"],
+    ["1", "<b>The key is the INVOICE number, not the ticket number.</b> 11 of 149 lines carry a "
+     "ticket number and every one of those 11 is $0.00 - they are the airline's own issue "
+     "records. Every line carrying money has no ticket number at all.",
+     "A reconciler matching on ticket number matches <b>nothing</b>. See §7."],
+    ["2", "<b>Sign carries the meaning.</b> Negative is a credit the host owes the agent - "
+     "markup and commission. Positive is the host's fee.",
+     "Sum the signed amounts; a negative total is what the host owes."],
+    ["3", "<b>One invoice can carry several lines</b>, and the host nets them itself, printing a "
+     "subtotal on a line of its own. A $50 credit against a $25 exchange fee prints as -$25.00.",
+     "Subtotal lines are restatements, not transactions. Counting them double-counts."],
+], [0.3 * inch, 3.5 * inch, 3.1 * inch])
+
+F += P("Parsing it", H2)
+F += P(
+    "A fixed-width report, two lines per invoice, six pages - each page carrying its own header "
+    "at <b>different column offsets</b>, and rows that do not reliably align to their own page's "
+    "header. So fields are recovered by what they are, not where they sit: a ticket number is a "
+    "run of digits at the front, a date is a date, the passenger carries a \"/\", the vendor is "
+    "what sits between them.")
+
+F += callout(
+    "<b>Validate against the statement's own bottom line.</b> The reader sums its lines to "
+    "exactly the balance the statement prints at its foot, -$30,519.65, with no warnings. That "
+    "is a check against arithmetic nobody on our side did, and it is what makes every other "
+    "figure believable. Keep this assertion in the test suite.", GOOD)
+
+F += P("Two bugs it caught, both of which produced plausible wrong numbers rather than errors: "
+       "\"Total Open\" and \"Account Balance\" each restate the balance, and counting them as "
+       "transactions <b>tripled</b> the payout to -$91,558.95; and 8/16/2026 was being read as "
+       "the 8th of the 16th month.")
+
+# --------------------------------------------------------------------- 7
+F += P("7 - Matching tickets to statement lines", H1)
+F += P(
+    "This is the hardest part of the module and the part most likely to be got wrong quietly. "
+    "The statement's money lines carry <b>no ticket number</b>, so the join has to be made on "
+    "what is there: passenger, itinerary and travel date.")
+
+F += P("The matching rule", H2)
+F += code([
+    "  match  =  surname equal",
+    "            AND travel date equal",
+    "            AND given name compatible (statement truncates it)",
+    "",
+    "  no confident match  ->  report as unmatched, never guess",
+])
+
+F += callout(
+    "<b>Surname alone is not enough, and the failure is silent.</b> A first pass matching on "
+    "surname produced eleven \"discrepancies\" on eight tickets: Klein/Joel paired with "
+    "Klein/Esther, Landau/David with a different Landau trip, Raab against a booking from a "
+    "month earlier. All false. Adding the travel date cut it to two confident matches and three "
+    "honest gaps. <b>Two real findings beat eleven that fall apart when checked.</b>")
+
+F += P("What the first real reconciliation found", H2)
+F += P("Eight of the agent's tickets fell inside the statement period. Two matched a statement "
+       "line confidently. <b>Both disagreed with the contract, and in the same direction.</b>")
+
+F += table([
+    ["Passenger", "Ticket", "Cls", "Fare", "Contract says", "MST charged", "Gap"],
+    ["AHARONI/SHOSHAN", "…4473", "I", "6,085.00", "-10.00", "<b>-50.00</b>", "<b>40.00</b>"],
+    ["AHARONI/YEHUDA", "…4478", "Q", "2,714.00", "-10.00", "<b>-30.00</b>", "<b>20.00</b>"],
+], [1.5 * inch, 0.72 * inch, 0.42 * inch, 0.9 * inch, 1.15 * inch, 1.05 * inch, 0.66 * inch])
+
+F += P(
+    "Both are <b>published</b> fares (<code>K-F</code>, no <code>SIAB;;BT</code>) that earned no "
+    "commission for want of the tour code. The schedule prices that at a flat <b>$10</b>. MST "
+    "charged <b>$50</b> and <b>$30</b> - which are exactly the schedule's <i>net-fare cabin</i> "
+    "figures ($30 premium, $50 business).")
+
+F += note(
+    "<b>Open question, and the most valuable one in this document.</b> Either MST applies the "
+    "cabin fees to published fares too, or the net-fare row is being read wrongly, or these are "
+    "net fares the AIR file does not mark. It is $60 on two tickets - but it is a rule that "
+    "applies to <b>every zero-commission ticket</b>, and none of the sampled tickets carry the "
+    "tour code. Put this to MST before phase 2.")
+
+F += P("Six of the agent's tickets had no statement line at all - three children on one family "
+       "booking (the fourth passenger was billed), and three passengers on another. On the "
+       "current reading those cost $10 each, so not being billed is $60 <i>in the agent's "
+       "favour</i>. The fee is not being applied consistently in either direction, which is "
+       "itself the finding.")
+
+# --------------------------------------------------------------------- 8
+F += P("8 - Reconciliation output", H1)
+F += P("Each line lands in exactly one of eight states. Nothing is dropped: a statement line "
+       "matching no ticket, and a ticket on no line, are both findings.")
 
 F += table([
     ["Status", "Severity", "Meaning", "Action"],
@@ -355,85 +459,103 @@ F += table([
      "Verify before spending"],
     ["NOT_IN_TICKETS", "warning", "Paid for a document not in our records", "Investigate"],
     ["DEDUCTION", "warning", "A fee withheld no agreement covers", "Query the fee"],
-    ["AGREES", "ok", "Matches to the cent", "-"],
-    ["CORRECTLY_NIL", "ok", "Both sides agree nothing is due", "-"],
+    ["<b>UNMATCHED</b>", "warning", "No confident join to a ticket", "Match by hand"],
+    ["AGREES / CORRECTLY_NIL", "ok", "Both sides agree", "-"],
 ], [1.35 * inch, 0.65 * inch, 2.75 * inch, 1.75 * inch])
 
 F += P("Excel export", H2)
-F += P("One row per ticket, sorted <b>worst first</b> (critical, warning, ok) so what needs "
-       "attention is at the top. <code>Variance</code> is the money column; negative means "
-       "underpaid.")
+F += P("One row per ticket, sorted <b>worst first</b>. <code>Variance</code> is the money column; "
+       "negative means underpaid. Red fill on negative, amber on positive, freeze the header.")
 
 F += table([
     ["Column", "Example", "Column", "Example"],
-    ["Status", "SHORT_PAID", "Commission", "0.00"],
-    ["Ticket", "114-7507683179", "Fees", "-33.99"],
-    ["Passenger", "TESTPAX/SAMPLE", "Markup", "679.75"],
-    ["Type", "TKT", "<b>Cheque due</b>", "<b>645.76</b>"],
-    ["Issue date", "2026-08-31", "Paid", "600.00"],
-    ["Route", "JFK-TLV", "<b>Variance</b>", "<b>-45.76</b>"],
-    ["Class / fare", "K / net", "Contract", "EL AL 2026"],
-    ["Base fare", "3398.75", "Why", "net fare fee, 1% of fare"],
+    ["Status", "OVER_CHARGED", "Commission", "0.00"],
+    ["Ticket", "114-7504084473", "Fees", "-10.00"],
+    ["Passenger", "AHARONI/SHOSHAN", "Markup", "0.00"],
+    ["Travel date", "2026-08-05", "<b>Cheque due</b>", "<b>-10.00</b>"],
+    ["Route", "MIA-TLV", "MST invoice", "10109752"],
+    ["Class / fare", "I / published", "MST amount", "-50.00"],
+    ["Base fare", "6085.00", "<b>Variance</b>", "<b>-40.00</b>"],
+    ["Match basis", "surname+date", "Why", "nil: tour code required"],
 ], [0.95 * inch, 1.55 * inch, 1.15 * inch, 2.35 * inch])
 
-F += P("Add a totals row splitting variance into <i>short-paid</i>, <i>over-paid</i>, "
-       "<i>missing</i> and <i>unexplained deductions</i>. That figure is what the week is worth "
-       "arguing about. Red fill on negative variance, amber on positive; freeze the header.")
+F += P("Add a totals row splitting variance into <i>short-paid</i>, <i>over-charged</i>, "
+       "<i>missing</i> and <i>unexplained deductions</i>, plus a count of unmatched rows on both "
+       "sides. Those five figures are the week.")
 
-# --------------------------------------------------------------------- 7
-F += P("7 - API", H1)
+# --------------------------------------------------------------------- 9
+F += P("9 - API", H1)
 F += code([
-    "import { priceAirFile, checkStatement, discoverFromFiles }",
+    "import { priceAirFile, parseMstClientStatement, discoverFromFiles }",
     "  from '@commission/sdk'",
     "",
     "const result = priceAirFile(airText, {",
-    "  config,                 // contracts, loaded from your DB per tenant",
-    "  tenantId: 'acme',",
-    "  view: 'subagent',       // or 'host'",
+    "  config, tenantId: 'acme', view: 'subagent',",
     "})",
     "",
     "for (const doc of result.documents) {",
-    "  doc.ticketNumber       // '114-7507683179'",
     "  doc.prefill            // '645.76' or null -> leave the field empty",
     "  doc.outcome            // 'CALCULATED' | 'NIL' | 'NO_RULE' | ...",
-    "",
     "  doc.subAgentCommission // '0.00'     airline's commission, less host share",
     "  doc.fees               // [{ clause, label, amount }]",
     "  doc.markup             // '679.75'   the agent's own margin",
     "  doc.totalToSubAgent    // '645.76'   THE CHEQUE - reconcile against this",
-    "  doc.netToSubAgent      // '-33.99'   commission less fees, excludes markup",
-    "",
     "  doc.markupPercent      // '25.0000' or null if no ceiling configured",
     "  doc.markupHeadroom     // '0.00' = at the ceiling; negative = over it",
-    "",
-    "  doc.explanation        // show beside the field",
-    "  doc.flags              // [{ code: 'REVIEW', message }]",
+    "  doc.explanation, doc.clause, doc.flags",
     "}",
     "",
-    "checkStatement(statementCsv, airFiles, opts)   // weekly reconciliation",
-    "discoverFromFiles(airFiles, opts)              // bootstrap contracts",
+    "const st = parseMstClientStatement(statementText)",
+    "  st.lines[]             // invoice, ticketNumber (usually null), passenger,",
+    "                         // vendor, issueDate, startDate, itinerary, amount",
+    "  st.invoices[]          // grouped, with net and the printed subtotal",
+    "  st.totals.payout       // our sum",
+    "  st.totals.statedBalance// the statement's own - ASSERT THESE MATCH",
 ])
 
 F += P("All money crosses the boundary as decimal strings - no bigint, no floats, no Date - so "
-       "the whole response survives <code>JSON.stringify</code> into a column or an HTTP body. "
-       "An HTTP wrapper is provided (<code>POST /price</code>, <code>POST /statement</code>) "
-       "with no dependencies, for callers that cannot import JavaScript.")
+       "the whole response survives <code>JSON.stringify</code>. An HTTP wrapper is provided "
+       "(<code>POST /price</code>, <code>POST /statement</code>) with no dependencies.")
 
-# --------------------------------------------------------------------- 8
-F += P("8 - Build order", H1)
+# --------------------------------------------------------------------- 10
+F += P("10 - Known gaps", H1)
+F += P("Found on real files. Fix before trusting a full-folder run.")
+
+F += table([
+    ["Gap", "What happens", "Fix"],
+    ["<b>EMDs unrecognised</b>",
+     "A baggage EMD reads as a TKT with ticket number UNKNOWN, carrier ??, fare 0.00. Seen twice "
+     "in a 15-file sample.",
+     "Detect <code>EMD</code>/<code>TMCD</code> and type it as EMD"],
+    ["<b>Validating carrier missed</b>",
+     "Where the <code>A-</code> line is empty the carrier reads <code>??</code>, so no contract "
+     "resolves. Seen on United and Arkia tickets.",
+     "Fall back to the <code>FV</code> element"],
+    ["<b>Foreign currency fare</b>",
+     "<code>K-FPLN6789.00;USD1811.00</code> is read as PLN 6,789. The statement settles in USD, "
+     "so the ticket prices in the wrong currency or throws a mismatch.",
+     "Take the second field, the settlement currency"],
+    ["<b>Other agencies in the folder</b>",
+     "9 of 15 sampled files belonged to IATA 33770903. Totals across the folder are wrong.",
+     "Filter by IATA first, and surface the others as a finding"],
+], [1.45 * inch, 3.15 * inch, 2.3 * inch])
+
+# --------------------------------------------------------------------- 11
+F += P("11 - Build order", H1)
 F += table([
     ["Phase", "Scope", "Done when"],
-    ["<b>1</b>",
-     "Contract tables + resolution. <b>Read-only</b>: compute and display, write nothing.",
+    ["<b>0</b>", "Fix the four gaps in §10. They are all on real files.",
+     "A full-folder run produces no UNKNOWN tickets or ?? carriers"],
+    ["<b>1</b>", "Contract tables + resolution. <b>Read-only</b>: compute and display.",
      "Every LY/MST ticket shows a cheque figure and an explanation"],
     ["<b>2</b>", "Pre-fill. Write the number into the field.",
      "Agents stop entering commission by hand on CALCULATED and NIL tickets"],
-    ["<b>3</b>", "Statement upload, reconciliation, Excel export.",
+    ["<b>3</b>", "Statement upload, matching, reconciliation, Excel export.",
      "A week's statement produces a sorted exception list"],
     ["<b>4</b>", "Contract editing and PDF upload in the UI.",
      "A new airline can be added without a deploy"],
     ["<b>5</b>", "Second host agency; then standalone for other agencies.",
-     "The engine has no CRM dependency - this is packaging, not a rewrite"],
+     "The engine has no CRM dependency - packaging, not a rewrite"],
 ], [0.62 * inch, 3.23 * inch, 3.05 * inch])
 
 F += P("<b>Phase 1 being read-only is the important one.</b> It lets the computed figure be "
@@ -450,15 +572,21 @@ F += table([
     ["NIL and NO_RULE never merge", "Both show $0.00; only one is an answer"],
     ["Reconcile against the cheque, not the commission",
      "Otherwise every marked-up ticket reports wrongly"],
+    ["Match on surname AND travel date, or not at all",
+     "Surname alone produced eleven false discrepancies out of eleven"],
+    ["Filter by IATA before any total", "The folder holds other agencies' files"],
+    ["Assert our statement sum equals the statement's own balance",
+     "It is the only external check on the reader"],
     ["A tie is never broken arbitrarily", "Two clauses matching equally returns AMBIGUOUS"],
     ["Every figure cites its clause", "The output is evidence in a dispute"],
-    ["The engine does no I/O", "No database, no clock, no randomness - same ticket, same number"],
     ["Unapproved clauses do not spend", "A term nobody confirmed is exposure, not income"],
 ], [2.5 * inch, 4.4 * inch])
 
-# Kept whole: two rows orphaned onto a page of their own read as an accident.
 F += [KeepTogether(P("Open questions for Main St. Travel", H1) + table([
     ["Question", "Impact"],
+    ["<b>Why was a published, non-commissionable fare charged $50 and $30 rather than the "
+     "schedule's $10?</b> Both are the net-fare cabin figures.",
+     "Applies to every zero-commission ticket; $60 on two sampled"],
     ["Is the commissionable basis the base fare alone, or base plus YQ/YR? Neither contract "
      "states it.", "~$35 per ticket on a long-haul fare"],
     ["Is the host's point on a NET fare struck on the selling fare or the net fare before "
@@ -467,8 +595,8 @@ F += [KeepTogether(P("Open questions for Main St. Travel", H1) + table([
      "Decides a $15 floor from a $50 one"],
     ["Is the tour code enforced in practice? No sampled ticket carries it.",
      "Forfeits the commission on every published fare"],
-    ["Is the $10 minimum fee on sub-$10 commission automatic or discretionary?",
-     "$10 per affected ticket"],
+    ["Why do some tickets on a family booking get no statement line at all?",
+     "Six sampled tickets unbilled; direction varies"],
     ["Statements are weekly, settlement is monthly - which is authoritative?",
      "Whether a weekly shortfall is real or timing"],
 ], [4.0 * inch, 2.9 * inch]))]
