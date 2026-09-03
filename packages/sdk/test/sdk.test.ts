@@ -152,3 +152,82 @@ describe('checking a statement', () => {
     expect(r.error).toMatch(/no contract is configured/);
   });
 });
+
+describe("a figure is only offered when it is safe to write", () => {
+  /**
+   * Regression: the ZRH–TLV reissue in the real samples. The carrier layer
+   * settles (a $100 clawback, because the journey originates outside US/CA and
+   * the original ticket was already commissioned), while the sub-agent layer
+   * cannot resolve its share at all. Reading the carrier's outcome and paying
+   * the sub-agent's number offered a confident 0.00 on an open question.
+   */
+  const sample = read("amadeus-air-ly-published-exchange.air");
+
+  function priced() {
+    const config = seedConfig();
+    return priceAirFile(sample, { config, view: "subagent" });
+  }
+
+  it("offers nothing where the two contracts disagree", () => {
+    const doc = priced().documents[0]!;
+    // The engine has already said a human is needed; the SDK must not paper
+    // over that with a number.
+    expect(doc.flags.some((f) => f.code === "REVIEW")).toBe(true);
+    expect(doc.prefill).toBeNull();
+  });
+
+  it("still reports the figures, so the reason is visible", () => {
+    // Withholding the prefill must not withhold the explanation — the caller
+    // needs to see what the clawback was in order to query it.
+    const doc = priced().documents[0]!;
+    expect(doc.carrierCommission).toBe("-100.00");
+    expect(doc.explanation).toBeTruthy();
+  });
+});
+
+describe("a ticket that earns nothing still costs something", () => {
+  /**
+   * The commission field is not the whole story once a real fee schedule is
+   * loaded. Four of the five sample records are bulk fares on LY: they earn no
+   * commission and are charged a flat fee by cabin. A caller that reads only
+   * the share sees 0.00 and misses the charge entirely.
+   */
+  const config = seedConfig();
+  const priced = (name: string) =>
+    priceAirFile(read(name), { config, view: "subagent" }).documents[0]!;
+
+  it("reports the fee alongside the zero commission", () => {
+    const doc = priced("amadeus-air-ly-bt.air");
+    expect(doc.subAgentCommission).toBe("0.00");
+    expect(doc.netToSubAgent).toBe("-50.00");
+    expect(doc.fees.map((f) => f.ruleId)).toEqual(["MST-FEE-NET-LY-BUSINESS"]);
+  });
+
+  it("charges the economy rate on an economy bulk fare", () => {
+    const doc = priced("amadeus-air-ly-multipax.air");
+    expect(doc.netToSubAgent).toBe("-15.00");
+  });
+
+  it("cites the clause behind every fee", () => {
+    // A charge the agent cannot trace to a line of the agreement is one they
+    // cannot dispute.
+    const doc = priced("amadeus-air-ly-bt.air");
+    for (const fee of doc.fees) {
+      expect(fee.clause, fee.ruleId).toBeTruthy();
+      expect(fee.amount).toMatch(/^-\d+\.\d\d$/);
+    }
+  });
+
+  it("reports no fees when pricing as the host", () => {
+    const doc = priceAirFile(read("amadeus-air-ly-bt.air"), {
+      config, view: "host",
+    }).documents[0]!;
+    expect(doc.fees).toEqual([]);
+    expect(doc.netToSubAgent).toBeNull();
+  });
+
+  it("still round-trips through JSON", () => {
+    const doc = priced("amadeus-air-ly-bt.air");
+    expect(JSON.parse(JSON.stringify(doc))).toEqual(doc);
+  });
+});

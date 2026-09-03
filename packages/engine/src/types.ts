@@ -239,6 +239,27 @@ export interface RuleMatch {
    * a service fee fires only where the host earned nothing.
    */
   readonly upstreamCommission?: "nil" | "nonzero" | "any";
+  /**
+   * Layer-2 only: gate a rule on the SIZE of the carrier commission, as a
+   * decimal string in the document's currency.
+   *
+   * Host agreements price the small tickets differently from the large ones —
+   * "a minimum fee of $10 per ticket when the commission earned is less than
+   * $10" is a threshold, not a nil test, and `upstreamCommission: "nonzero"`
+   * cannot express it. Compared on the absolute value, so a refund's negative
+   * commission is tested by its magnitude.
+   */
+  readonly upstreamCommissionBelow?: string;
+  /** The mirror of `upstreamCommissionBelow`, inclusive at the boundary. */
+  readonly upstreamCommissionAtLeast?: string;
+  /**
+   * Whether the reissue collected any fare difference.
+   *
+   * Host fee schedules distinguish the two: "Exchanges $25 each (even
+   * exchange: $0)". An even exchange is one where nothing was collected, and
+   * on a document that is not an exchange at all this condition never passes.
+   */
+  readonly additionalCollection?: "zero" | "nonzero";
 }
 
 export type AwardKind =

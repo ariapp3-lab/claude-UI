@@ -19,7 +19,7 @@
 
 import {
   calculate, formatMoney, journeyDestination, DEFAULT_GEO,
-  type Rule, type TicketDocument, type Waterfall,
+  type LayerResult, type Rule, type TicketDocument, type Waterfall,
 } from "@commission/engine";
 import {
   type Config, carrierRulesFor, compileSubAgentRules, seedConfig,
@@ -32,6 +32,29 @@ export { seedConfig };
 
 /** Outcomes a caller may write into a commission field without asking anyone. */
 const TRUSTWORTHY = new Set(["CALCULATED", "NIL"]);
+
+/**
+ * Whether the figure being offered is safe to write unattended.
+ *
+ * Two things beyond the outcome have to hold, and both were learned from a
+ * real record — a ZRH–TLV reissue of a ticket that had already been
+ * commissioned $100:
+ *
+ *  1. The layer being PAID must be the layer that settled. There the carrier
+ *     layer resolved cleanly (a clawback of $100) while the sub-agent layer
+ *     could not resolve its share at all. Reading the carrier's outcome and
+ *     paying the sub-agent's number offered a confident $0.00 on a document
+ *     where the answer was unknown.
+ *
+ *  2. A REVIEW flag disqualifies the document. The engine raises one when two
+ *     signed contracts disagree — on that same record, that the host pays $100
+ *     out of pocket. A number the engine has already said needs a human is not
+ *     a number to bind to a form field.
+ */
+function isSafeToPrefill(w: Waterfall, paidLayer: LayerResult): boolean {
+  if (!TRUSTWORTHY.has(paidLayer.outcome)) return false;
+  return !w.flags.some((f) => f.code === "REVIEW" || !TRUSTWORTHY.has(f.code));
+}
 
 export interface PricedDocument {
   readonly ticketNumber: string;
@@ -50,6 +73,27 @@ export interface PricedDocument {
   /** What the sub-agent earns after the retention; null when priced as the host. */
   readonly subAgentCommission: string | null;
   readonly hostSpread: string | null;
+
+  /**
+   * Fees the host charges on this document, signed from the sub-agent's view —
+   * a charge is negative. Empty on a document priced as the host.
+   */
+  readonly fees: readonly {
+    readonly ruleId: string;
+    readonly clause: string | null;
+    readonly label: string;
+    readonly amount: string;
+  }[];
+
+  /**
+   * What the sub-agent actually ends up with: their share less every fee.
+   *
+   * This is the figure that differs from `subAgentCommission` on exactly the
+   * tickets that matter. A net or bulk fare earns no commission and costs a
+   * flat fee by cabin, so the share reads 0.00 and the net reads -15.00. A
+   * caller that shows the share alone is showing the wrong number.
+   */
+  readonly netToSubAgent: string | null;
 
   /**
    * The value to write into a commission field, or null.
@@ -192,7 +236,18 @@ export function priceAirFile(airText: string, opts: PriceOptions): PriceResult {
       subAgentCommission: w?.subAgent ? formatMoney(w.subAgent.commission) : null,
       hostSpread: w ? formatMoney(w.hostSpread) : null,
 
-      prefill: w && payable && TRUSTWORTHY.has(w.carrier.outcome) ? formatMoney(payable) : null,
+      fees: (w?.fees ?? []).map((fee) => ({
+        ruleId: fee.ruleId,
+        clause: fee.clause ?? null,
+        label: fee.label,
+        amount: formatMoney(fee.amount),
+      })),
+      netToSubAgent: w && subAgentId ? formatMoney(w.netToSubAgent) : null,
+
+      prefill:
+        w && payable && isSafeToPrefill(w, subAgentId ? (w.subAgent ?? w.carrier) : w.carrier)
+          ? formatMoney(payable)
+          : null,
       outcome,
 
       claimed: p.reportedFM ? formatMoney(p.reportedFM.amount) : null,

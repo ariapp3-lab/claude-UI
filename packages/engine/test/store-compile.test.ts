@@ -134,3 +134,49 @@ describe('editing the contract changes the money', () => {
     expect(f(calculate({ ticket: ticket(), rules }).carrier.commission)).toBe('180.00');
   });
 });
+
+describe('the signed MST schedule reaches the app', () => {
+  const seeded = seedConfig().consolidators[0]!;
+
+  it('is what the seeded consolidator compiles to', () => {
+    const rules = compileSubAgentRules(seeded, 'subagent');
+    const ids = rules.map((r) => r.id);
+    expect(ids).toContain('MST-SHARE-LY');
+    expect(ids).toContain('MST-FEE-NET-LY-ECONOMY');
+    expect(ids).toContain('MST-FEE-EXCHANGE');
+    expect(ids).toContain('MST-FEE-NONCOMM');
+    // Not the generic one-line residual any more.
+    expect(ids).not.toContain('mst-RESIDUAL');
+  });
+
+  it('keeps the discretionary minimum fee switched off', () => {
+    // Filed under rights MST reserved, not commitments it made, so it must not
+    // be booked as a certainty against the agent.
+    const rules = compileSubAgentRules(seeded, 'subagent');
+    expect(rules.find((r) => r.id === 'MST-FEE-MINIMUM')!.approved).toBe(false);
+  });
+
+  it('binds every clause to the sub-agent being priced', () => {
+    const rules = compileSubAgentRules(seeded, 'someone-else');
+    expect(rules.every((r) => r.subAgentId === 'someone-else')).toBe(true);
+  });
+
+  it('still follows the retention the agency edits', () => {
+    const edited = compileSubAgentRules({ ...seeded, retainsPoints: '3.00' }, 'sa');
+    const share = edited.find((r) => r.id === 'MST-SHARE-LY')!;
+    expect(share.award.hostRetainsPoints).toBe('3.00');
+    // A carrier the field does not speak for keeps its signed rate.
+    const other = edited.find((r) => r.id === 'MST-SHARE-DEFAULT')!;
+    expect(other.award.hostRetainsPoints).toBe('2.00');
+  });
+
+  it('leaves an agency with no signed schedule on the plain residual', () => {
+    // The standalone case: another agency starts from one editable number.
+    const plain = compileSubAgentRules(
+      { ...seeded, feeSchedule: undefined, retainsPoints: '1.50' },
+      'sa',
+    );
+    expect(plain).toHaveLength(1);
+    expect(plain[0]!.award.hostRetainsPoints).toBe('1.50');
+  });
+});

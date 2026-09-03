@@ -1051,7 +1051,15 @@ export function calculate(
   const upstreamEstablished =
     carrier.outcome === "NIL" || carrier.outcome === "CALCULATED";
   const upstreamNil = upstreamEstablished && isZero(carrier.commission);
-  const ctx: MatchContext = { geo, upstreamCommissionIsNil: upstreamNil };
+  const ctx: MatchContext = {
+    geo,
+    upstreamCommissionIsNil: upstreamNil,
+    // Threshold conditions read the size of the commission, and only where the
+    // carrier layer actually settled it. Leaving this undefined on a NO_RULE or
+    // AMBIGUOUS document is what stops a "commission under $10" fee from firing
+    // on a document whose commission nobody has worked out yet.
+    upstreamCommissionUnits: upstreamEstablished ? carrier.commission.units : undefined,
+  };
   const pool = rules.filter(
     (r) => r.layer === "host_to_subagent" && r.subAgentId === subAgentId,
   );

@@ -23,6 +23,7 @@
 
 import type { Rule } from "../src/types.js";
 import { LY_MAINST_2026, ATTACHMENT_A } from "./ly-mainst-2026.js";
+import { MST_SUBAGENT_2026 } from './mst-subagent-2026.js';
 
 export interface ContractFile {
   readonly id: string;
@@ -62,6 +63,16 @@ export interface StoredConsolidator {
   readonly iata: string;
   /** Points of the fare the consolidator retains; the sub-agent takes the rest. */
   readonly retainsPoints: string;
+  /**
+   * A signed fee schedule to use in place of the plain residual.
+   *
+   * Most host agreements are one line — "we keep a point" — and `retainsPoints`
+   * says it all. A real signed schedule is not: MST's prices net fares by cabin,
+   * charges per exchange and per refund, and bills $10 on a ticket that earned
+   * nothing. Where one has been encoded, name it here; otherwise the generic
+   * residual below applies, which is what any other agency starts from.
+   */
+  readonly feeSchedule?: 'mst-2026';
   readonly contracts: readonly CarrierContract[];
   readonly notes: string;
 }
@@ -88,7 +99,11 @@ export function seedConfig(): Config {
       name: 'Main St Travel',
       iata: '33535983',
       retainsPoints: '1.00',
-      notes: 'Consolidator retains 1.00 point of the fare; the sub-agent takes the remainder.',
+      feeSchedule: 'mst-2026',
+      notes:
+        'Sub-Agent Agreement effective 2026-02-01. MST keeps 1 point on LY published '
+        + 'fares (2 on other carriers), charges a flat fee by cabin on net and bulk '
+        + 'fares, $25 per exchange and per refund, and $10 on a ticket that earns nothing.',
       contracts: [{
         id: 'ly-2026',
         carrier: 'LY',
@@ -217,6 +232,24 @@ export function compileContract(
 
 /** The sub-agent's side: the consolidator keeps its points, we take the rest. */
 export function compileSubAgentRules(c: StoredConsolidator, subAgentId: string): Rule[] {
+  if (c.feeSchedule === 'mst-2026') {
+    // The signed schedule, rebound to whichever sub-agent is being priced. Its
+    // own approval flags are preserved: the clauses MST reserved the right to
+    // apply, rather than committed to, stay off until confirmed.
+    //
+    // `retainsPoints` still governs, because it is the number the agency edits
+    // in the UI and a setting that silently does nothing is worse than no
+    // setting. It applies to the LY clauses — the schedule prices LY at one
+    // point and everything else at two, and it is the LY figure the field
+    // stands for. A different carrier keeps the rate as signed.
+    const LY_SHARE_RULES = new Set(['MST-SHARE-LY', 'MST-SHARE-LY-EXCH']);
+    return MST_SUBAGENT_2026.map((r) =>
+      LY_SHARE_RULES.has(r.id)
+        ? { ...r, subAgentId, award: { ...r.award, hostRetainsPoints: c.retainsPoints } }
+        : { ...r, subAgentId },
+    );
+  }
+
   return [{
     id: `${c.id}-RESIDUAL`,
     layer: 'host_to_subagent',

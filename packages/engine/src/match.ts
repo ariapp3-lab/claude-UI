@@ -23,11 +23,17 @@ import type {
 import {
   type GeoContext, countryOf, isWithin, journeyDestination, journeyOrigin, matchMarket,
 } from "./geo.js";
+import { formatMoney, parseMoney } from "./money.js";
 
 export interface MatchContext {
   readonly geo: GeoContext;
   /** Outcome of the carrier layer, for layer-2 `upstreamCommission` gating. */
   readonly upstreamCommissionIsNil?: boolean;
+  /**
+   * Magnitude of the carrier commission in minor units, for the threshold
+   * conditions. Absolute: a refund is tested by size, not by sign.
+   */
+  readonly upstreamCommissionUnits?: bigint;
 }
 
 function normalise(c: string | StringCondition): StringCondition {
@@ -288,6 +294,53 @@ export function evaluateRule(
       actual: isNil ? "nil" : "nonzero",
       passed: want === "nil" ? isNil : !isNil,
     });
+  }
+
+  if (m.additionalCollection !== undefined) {
+    const collected = ticket.exchange?.additionalCollection ?? null;
+    // Absent is not the same as zero: a document with no exchange block at all
+    // is not an even exchange, it is not an exchange.
+    const isExchange = ticket.exchange != null;
+    const units = collected?.units ?? 0n;
+    traces.push({
+      field: "additionalCollection",
+      expected: m.additionalCollection,
+      actual: !isExchange ? "not an exchange" : formatMoney(collected ?? { units: 0n, currency: ticket.currency }),
+      passed: !isExchange ? false : m.additionalCollection === "zero" ? units === 0n : units !== 0n,
+    });
+  }
+
+  if (m.upstreamCommissionBelow !== undefined || m.upstreamCommissionAtLeast !== undefined) {
+    const units = ctx.upstreamCommissionUnits;
+    const magnitude = units === undefined ? undefined : units < 0n ? -units : units;
+
+    for (const [field, want] of [
+      ["upstreamCommissionBelow", m.upstreamCommissionBelow],
+      ["upstreamCommissionAtLeast", m.upstreamCommissionAtLeast],
+    ] as const) {
+      if (want === undefined) continue;
+      // The threshold is a plain decimal read in the document's own currency,
+      // so the same clause reads correctly on a EUR ticket as on a USD one —
+      // and a zero-decimal currency like JPY scales to the right minor unit
+      // instead of being silently divided by a hardcoded hundred.
+      const threshold = parseMoney(want, ticket.currency).units;
+      traces.push({
+        field,
+        expected: want,
+        actual:
+          magnitude === undefined
+            ? "∅"
+            : formatMoney({ units: magnitude, currency: ticket.currency }),
+        // With no carrier commission resolved there is nothing to compare, so
+        // the condition fails rather than firing a fee on an unknown.
+        passed:
+          magnitude === undefined
+            ? false
+            : field === "upstreamCommissionBelow"
+              ? magnitude < threshold
+              : magnitude >= threshold,
+      });
+    }
   }
 
   return {
