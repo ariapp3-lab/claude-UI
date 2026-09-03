@@ -6,6 +6,9 @@ import { settle, type SettlementRow } from '../../../packages/cli/src/statement'
 import { Amount, Note, Panel, Pill, StatCard, type Tone } from '../components/primitives';
 import { detectConsolidators, money, routeOf } from '../data';
 import { useBatch } from '../batch';
+import { usePeriod } from '../usePeriod';
+import { PeriodPicker } from '../components/PeriodPicker';
+import { inPeriod } from '../period';
 import { useWorkspace, WorkspaceBar } from '../workspace';
 
 const TONE_OF: Record<string, Tone> = { critical: 'critical', warning: 'warning', ok: 'ok' };
@@ -18,25 +21,30 @@ const TONE_OF: Record<string, Tone> = { critical: 'critical', warning: 'warning'
  * folding it into one variance would hide which half is in question.
  */
 export default function StatementPage() {
-  const { consolidator, rules, subAgentId, view } = useWorkspace();
+  const { consolidator, rules, subAgentId, view, consolidators } = useWorkspace();
   const batch = useBatch();
   const [statementText, setStatementText] = useState<string | null>(null);
   const [statementName, setStatementName] = useState<string | null>(null);
 
-  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch.passengers]);
+  const detected = useMemo(() => detectConsolidators(batch.passengers, consolidators), [batch.passengers, consolidators]);
   const parsed: StatementParseResult | null = useMemo(
     () => (statementText ? parseStatementCsv(statementText) : null),
     [statementText],
   );
 
+  const period = usePeriod(batch.passengers.map((p) => p.ticket));
+  const scopedTickets = useMemo(
+    () => inPeriod(batch.passengers.map((p) => p.ticket), period.selected),
+    [batch.passengers, period.selected]);
+
   const result = useMemo(() => {
     if (!parsed || !subAgentId) return null;
     return settle({
-      tickets: batch.passengers.map((p) => p.ticket),
+      tickets: scopedTickets,
       statement: parsed.lines,
       rules, subAgentId,
     });
-  }, [parsed, batch, rules, subAgentId]);
+  }, [parsed, scopedTickets, rules, subAgentId]);
 
   async function loadStatement(list: FileList | null) {
     const file = list?.[0];
@@ -57,19 +65,26 @@ export default function StatementPage() {
     <div className="flex-1 overflow-y-auto p-6 space-y-5">
       <WorkspaceBar detected={detected} />
 
+      <div className="card px-4 py-2.5">
+        <PeriodPicker granularity={period.granularity} onGranularity={period.setGranularity}
+                      periods={period.periods} selected={period.selected} onSelect={period.select} />
+      </div>
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[21px] font-semibold tracking-tight text-slate-900">
             Statement reconciliation
           </h1>
           <p className="text-[13.5px] text-slate-600 mt-1 max-w-[64ch]">
-            {consolidator.name} pays weekly. Upload the statement and it is matched,
-            line by line, against what the contract says each document earns.
+            {consolidator.name} pays weekly. Upload the statement and it is matched
+            line by line against what the contract says each document earns —
+            for {period.selected?.label ?? 'the loaded documents'}
+            {' '}({scopedTickets.length.toLocaleString()} document(s)).
           </p>
         </div>
         <div className="flex gap-2">
           <label className="btn-secondary cursor-pointer">
-            <Upload size={14} /> AIR files ({batch.passengers.length})
+            <Upload size={14} /> AIR files ({scopedTickets.length.toLocaleString()})
             <input type="file" multiple className="hidden"
                    onChange={(e) => void loadAir(e.target.files)} />
           </label>

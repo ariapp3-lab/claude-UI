@@ -15,14 +15,11 @@ import { LY_MAINST_2026, ATTACHMENT_A, OPEN_QUESTIONS } from '../../packages/eng
 import {
   AAPPEL_2026, HOST_RETAINS_POINTS, SUB_AGENT_ID, rateCard,
 } from '../../packages/engine/contracts/subagent-aappel-2026';
-import {
-  CONSOLIDATORS, consolidatorForIata, type Consolidator,
-} from '../../packages/engine/contracts/consolidators';
+
 
 export { ATTACHMENT_A, OPEN_QUESTIONS, LY_MAINST_2026 };
 export { AAPPEL_2026, HOST_RETAINS_POINTS, SUB_AGENT_ID, rateCard };
-export { CONSOLIDATORS, consolidatorForIata };
-export type { Consolidator };
+
 
 /** Carrier contract plus the sub-agent agreement, which is what an agent sees. */
 export const SUB_AGENT_RULES: Rule[] = [
@@ -104,8 +101,8 @@ export function routeOf(ticket: TicketDocument): string {
 export interface DetectedConsolidator {
   /** The IATA number the tickets were issued under. */
   readonly iata: string;
-  /** The consolidator that number belongs to, where we hold their contracts. */
-  readonly consolidator: Consolidator | null;
+  /** The consolidator that number belongs to, where contracts are held for it. */
+  readonly consolidator: { id: string; name: string; iata: string } | null;
   readonly tickets: number;
 }
 
@@ -121,6 +118,7 @@ export interface DetectedConsolidator {
  */
 export function detectConsolidators(
   passengers: readonly { ticket: { iataNumber?: string } }[],
+  known: readonly { id: string; name: string; iata: string }[] = [],
 ): DetectedConsolidator[] {
   const counts = new Map<string, number>();
   for (const p of passengers) {
@@ -130,7 +128,7 @@ export function detectConsolidators(
   return [...counts.entries()]
     .map(([iata, tickets]) => ({
       iata,
-      consolidator: iata === 'unknown' ? null : (consolidatorForIata(iata) ?? null),
+      consolidator: iata === 'unknown' ? null : (known.find((c) => c.iata === iata) ?? null),
       tickets,
     }))
     .sort((a, b) => b.tickets - a.tickets);

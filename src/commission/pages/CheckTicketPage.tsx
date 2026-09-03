@@ -18,11 +18,11 @@ import { useWorkspace, WorkspaceBar } from '../workspace';
  * does not know about does not reduce what is shown.
  */
 export default function CheckTicketPage() {
-  const { consolidator, rules, subAgentId } = useWorkspace();
+  const { consolidator, rules, subAgentId, consolidators } = useWorkspace();
   const batch = useBatch();
   const [selected, setSelected] = useState(0);
 
-  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch.passengers]);
+  const detected = useMemo(() => detectConsolidators(batch.passengers, consolidators), [batch.passengers, consolidators]);
   const result = useMemo(
     () => priceBatch(batch.passengers, rules, batch.warnings),
     [batch.passengers, batch.warnings, rules],

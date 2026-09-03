@@ -9,6 +9,9 @@ import { FolderSource } from '../components/FolderSource';
 import { TraceView, WaterfallView } from '../components/Waterfall';
 import { detectConsolidators, money, priceBatch } from '../data';
 import { useBatch } from '../batch';
+import { usePeriod } from '../usePeriod';
+import { PeriodPicker } from '../components/PeriodPicker';
+import { inPeriod } from '../period';
 import { useWorkspace, WorkspaceBar } from '../workspace';
 
 /** The table is a work queue, not an archive; the export is the archive. */
@@ -19,16 +22,27 @@ const TONE_OF: Record<string, Tone> = {
 };
 
 export default function ReconciliationPage() {
-  const { consolidator, rules } = useWorkspace();
+  const { consolidator, rules, consolidators } = useWorkspace();
   const batch = useBatch();
   const [open, setOpen] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [limit, setLimit] = useState(ROWS_PER_PAGE);
 
-  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch.passengers]);
+  const detected = useMemo(
+    () => detectConsolidators(batch.passengers, consolidators),
+    [batch.passengers, consolidators]);
+
+  // Settlement is per period, so the figures are too: totals, variances and the
+  // queue all describe one week (or month), never the whole folder at once.
+  const period = usePeriod(batch.passengers.map((p) => p.ticket));
+  const scoped = useMemo(
+    () => inPeriod(batch.passengers.map((p) => p.ticket), period.selected)
+      .map((t) => batch.passengers.find((p) => p.ticket === t)!),
+    [batch.passengers, period.selected]);
+
   const result = useMemo(
-    () => priceBatch(batch.passengers, rules, batch.warnings),
-    [batch.passengers, batch.warnings, rules],
+    () => priceBatch(scoped, rules, batch.warnings),
+    [scoped, batch.warnings, rules],
   );
   const t = result.totals;
 
@@ -64,8 +78,9 @@ export default function ReconciliationPage() {
         <div>
           <h1 className="text-[21px] font-semibold tracking-tight text-slate-900">Reconciliation</h1>
           <p className="text-[13.5px] text-slate-600 mt-1 max-w-[62ch]">
-            {batch.passengers.length.toLocaleString()} document(s) from {batch.source} priced against{' '}
-            {consolidator.name}'s carrier contracts. Every figure is computed here from the
+            {scoped.length.toLocaleString()} of {batch.passengers.length.toLocaleString()} document(s)
+            from {batch.source}, priced against {consolidator.name}'s carrier contracts
+            {period.selected && period.selected.key !== 'all' && <> for {period.selected.label}</>}. Every figure is computed here from the
             documents themselves — nothing is stored and nothing is estimated.
           </p>
         </div>
@@ -78,6 +93,11 @@ export default function ReconciliationPage() {
       </div>
 
       <FolderSource count={batch.fileCount} />
+
+      <div className="card px-4 py-2.5">
+        <PeriodPicker granularity={period.granularity} onGranularity={period.setGranularity}
+                      periods={period.periods} selected={period.selected} onSelect={period.select} />
+      </div>
 
       {result.currencies.length > 1 && (
         <Note tone="warning" title="This batch holds more than one currency.">

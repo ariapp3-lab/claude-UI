@@ -1,12 +1,15 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext, useCallback, useContext, useMemo, useState, type ReactNode,
+} from 'react';
 import clsx from 'clsx';
 import { AlertTriangle, Building2 } from 'lucide-react';
 import type { Rule } from '@commission/engine';
-import {
-  CONSOLIDATORS, rulesFor, type Consolidator,
-} from '../../packages/engine/contracts/consolidators';
 import { SUB_AGENT_ID } from '../../packages/engine/contracts/subagent-aappel-2026';
 import type { DetectedConsolidator } from './data';
+import {
+  type Config, type StoredConsolidator, carrierRulesFor, compileSubAgentRules,
+  loadConfig, saveConfig,
+} from './store';
 
 /**
  * Who is looking, and at whose contracts.
@@ -20,12 +23,16 @@ import type { DetectedConsolidator } from './data';
 export type View = 'host' | 'subagent';
 
 interface Workspace {
-  readonly consolidator: Consolidator;
+  readonly config: Config;
+  readonly consolidators: readonly StoredConsolidator[];
+  readonly consolidator: StoredConsolidator;
   readonly view: View;
   readonly rules: Rule[];
   readonly subAgentId: string | null;
   setConsolidator(id: string): void;
   setView(v: View): void;
+  /** Persist an edited configuration; returns false if storage refused it. */
+  updateConfig(next: Config): boolean;
 }
 
 const Ctx = createContext<Workspace | null>(null);
@@ -33,22 +40,46 @@ const Ctx = createContext<Workspace | null>(null);
 export function WorkspaceProvider(
   { children, defaultView = 'subagent' }: { children: ReactNode; defaultView?: View },
 ) {
-  const [id, setId] = useState(CONSOLIDATORS[0].id);
+  const [config, setConfig] = useState<Config>(() => loadConfig());
+  const [id, setId] = useState(() => config.consolidators[0]?.id ?? '');
   const [view, setView] = useState<View>(defaultView);
 
+  const updateConfig = useCallback((next: Config) => {
+    setConfig(next);
+    // Keep a selection that still exists after an edit or a deletion.
+    setId((current) =>
+      next.consolidators.some((c) => c.id === current)
+        ? current
+        : (next.consolidators[0]?.id ?? ''));
+    return saveConfig(next);
+  }, []);
+
   const value = useMemo<Workspace>(() => {
-    const consolidator = CONSOLIDATORS.find((c) => c.id === id) ?? CONSOLIDATORS[0];
+    const consolidator =
+      config.consolidators.find((c) => c.id === id) ?? config.consolidators[0] ?? EMPTY;
     return {
-      consolidator, view,
-      rules: rulesFor(consolidator, view),
+      config,
+      consolidators: config.consolidators,
+      consolidator,
+      view,
+      rules: view === 'host'
+        ? carrierRulesFor(consolidator)
+        : [...carrierRulesFor(consolidator), ...compileSubAgentRules(consolidator, SUB_AGENT_ID)],
       subAgentId: view === 'subagent' ? SUB_AGENT_ID : null,
       setConsolidator: setId,
       setView,
+      updateConfig,
     };
-  }, [id, view]);
+  }, [config, id, view, updateConfig]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
+
+/** So the app still renders if every consolidator has been deleted. */
+const EMPTY: StoredConsolidator = {
+  id: '', name: 'No consolidator', iata: '', retainsPoints: '0.00',
+  contracts: [], notes: '',
+};
 
 export function useWorkspace(): Workspace {
   const w = useContext(Ctx);
@@ -64,7 +95,7 @@ export function useWorkspace(): Workspace {
  * appears where the documents cannot answer the question themselves.
  */
 export function WorkspaceBar({ detected }: { detected?: readonly DetectedConsolidator[] }) {
-  const { consolidator, view, setConsolidator, setView } = useWorkspace();
+  const { consolidator, consolidators, view, setConsolidator, setView } = useWorkspace();
 
   const known = (detected ?? []).filter((d) => d.consolidator);
   const unknown = (detected ?? []).filter((d) => !d.consolidator);
@@ -101,7 +132,7 @@ export function WorkspaceBar({ detected }: { detected?: readonly DetectedConsoli
           aria-label="Consolidator"
           className="text-[13px] font-medium bg-transparent border-0 focus:ring-0 focus:outline-none cursor-pointer text-slate-900"
         >
-          {CONSOLIDATORS.map((c) => (
+          {consolidators.map((c) => (
             <option key={c.id} value={c.id}>{c.name} · IATA {c.iata}</option>
           ))}
         </select>
@@ -127,7 +158,9 @@ export function WorkspaceBar({ detected }: { detected?: readonly DetectedConsoli
       )}
 
       <span className="text-[12px] text-slate-400 ml-auto hidden lg:block">
-        {view === 'subagent' ? consolidator.terms : `Carriers: ${consolidator.carriers.join(', ')}`}
+        {view === 'subagent'
+          ? `Consolidator retains ${consolidator.retainsPoints} point(s) of the fare`
+          : `Carriers: ${consolidator.contracts.map((c) => c.carrier).join(', ') || 'none'}`}
       </span>
     </div>
   );

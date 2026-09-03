@@ -8,6 +8,9 @@ import { FolderSource } from '../components/FolderSource';
 import { TraceView, WaterfallView } from '../components/Waterfall';
 import { detectConsolidators, money, routeOf } from '../data';
 import { useBatch } from '../batch';
+import { usePeriod } from '../usePeriod';
+import { PeriodPicker } from '../components/PeriodPicker';
+import { inPeriod } from '../period';
 import { useWorkspace, WorkspaceBar } from '../workspace';
 
 /**
@@ -39,16 +42,24 @@ interface Row {
 }
 
 export default function TicketsPage() {
-  const { rules, subAgentId, view } = useWorkspace();
+  const { rules, subAgentId, view, consolidators } = useWorkspace();
   const batch = useBatch();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('earns');
   const [limit, setLimit] = useState(PAGE);
   const [open, setOpen] = useState<string | null>(null);
 
-  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch.passengers]);
+  const detected = useMemo(
+    () => detectConsolidators(batch.passengers, consolidators),
+    [batch.passengers, consolidators]);
 
-  const rows = useMemo<Row[]>(() => batch.passengers.map((p) => {
+  const period = usePeriod(batch.passengers.map((p) => p.ticket));
+  const scoped = useMemo(
+    () => batch.passengers.filter((p) =>
+      inPeriod([p.ticket], period.selected).length > 0),
+    [batch.passengers, period.selected]);
+
+  const rows = useMemo<Row[]>(() => scoped.map((p) => {
     const t = p.ticket;
     const w = calculate({ ticket: t, rules, subAgentId: subAgentId ?? undefined });
     const name = t.passengerName ?? '—';
@@ -62,7 +73,7 @@ export default function TicketsPage() {
       ticket: t,
       haystack: `${t.ticketNumber} ${name} ${route} ${classes} ${t.documentType} ${t.issueDate}`.toLowerCase(),
     };
-  }), [batch.passengers, rules, subAgentId]);
+  }), [scoped, rules, subAgentId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -128,6 +139,11 @@ export default function TicketsPage() {
       </div>
 
       <FolderSource count={batch.fileCount} />
+
+      <div className="card px-4 py-2.5">
+        <PeriodPicker granularity={period.granularity} onGranularity={period.setGranularity}
+                      periods={period.periods} selected={period.selected} onSelect={period.select} />
+      </div>
 
       <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(178px,1fr))]">
         <StatCard label="Documents" value={filtered.length.toLocaleString()}
