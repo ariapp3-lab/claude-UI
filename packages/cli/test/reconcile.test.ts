@@ -95,11 +95,7 @@ describe("each document is labelled by what actually happened to it", () => {
 
 describe("the counterfactual", () => {
   it("waives only the conditions that actually failed, and names them", () => {
-    const t = by("114-7503646565").waterfall;
-    const rec = recoverableValue(
-      inputs.find((i) => i.ticket.ticketNumber === t.ticketNumber)!.ticket,
-      RULES,
-    );
+    const rec = recoverableValue(by("114-7503646565").ticket, RULES);
     expect(f(rec.amount)).toBe("104.72");
     expect(rec.waivedConditions).toEqual(["tourCode"]);
     expect(rec.liftedRules).toContain("LY-MAINST-2026-NO-TOUR-CODE");

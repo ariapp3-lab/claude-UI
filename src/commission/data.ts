@@ -9,7 +9,7 @@
 
 import { DEFAULT_GEO, formatMoney, journeyDestination, type Money, type Rule } from '@commission/engine';
 import type { TicketDocument } from '@commission/engine';
-import { parseAmadeusAir, type AirPassenger } from '@commission/parsers';
+import type { AirPassenger } from '@commission/parsers';
 import { reconcile, type BatchResult, type ReconcileInput } from '@commission/cli';
 import { LY_MAINST_2026, ATTACHMENT_A, OPEN_QUESTIONS } from '../../packages/engine/contracts/ly-mainst-2026';
 import {
@@ -59,49 +59,25 @@ export const BUNDLED_FILES: LoadedFile[] = Object.entries(SAMPLES)
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
-export interface Batch {
-  readonly result: BatchResult;
-  readonly passengers: readonly AirPassenger[];
-  readonly fileCount: number;
-  readonly failures: readonly string[];
-}
-
-export function priceFiles(files: readonly LoadedFile[]): Batch {
-  const inputs: ReconcileInput[] = [];
-  const passengers: AirPassenger[] = [];
-  const warnings: string[] = [];
-  const failures: string[] = [];
-
-  for (const file of files) {
-    let parsed;
-    try {
-      parsed = parseAmadeusAir(file.text);
-    } catch (e) {
-      failures.push(`${file.name}: could not be read — ${(e as Error).message}`);
-      continue;
-    }
-    if (parsed.tickets.length === 0) {
-      failures.push(`${file.name}: no tickets found in this file`);
-      continue;
-    }
-    for (const p of parsed.passengers) {
-      passengers.push(p);
-      inputs.push({
-        ticket: p.ticket,
-        // A markup on a net fare is revenue, not a commission claim.
-        claimed: p.reportedFM && !p.ticket.bulk ? p.reportedFM.amount : null,
-        markup: p.markup,
-      });
-    }
-    for (const w of parsed.warnings) warnings.push(`${file.name}: ${w}`);
-  }
-
-  return {
-    result: reconcile(inputs, RULES, warnings),
-    passengers,
-    fileCount: files.length,
-    failures,
-  };
+/**
+ * Price already-parsed documents.
+ *
+ * Parsing happens once, in the batch provider, and the source text is dropped
+ * there — so this takes tickets rather than files. Pricing a few thousand is
+ * well under a second; it is the reading that takes the time.
+ */
+export function priceBatch(
+  passengers: readonly AirPassenger[],
+  rules: readonly Rule[],
+  warnings: readonly string[] = [],
+): BatchResult {
+  const inputs: ReconcileInput[] = passengers.map((p) => ({
+    ticket: p.ticket,
+    // A markup on a net fare is revenue, not a commission claim.
+    claimed: p.reportedFM && !p.ticket.bulk ? p.reportedFM.amount : null,
+    markup: p.markup,
+  }));
+  return reconcile(inputs, rules, warnings);
 }
 
 /** "1496.00" → "1,496.00". Grouping for display only; never for arithmetic. */

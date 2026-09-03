@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FolderOpen, FolderSync, RefreshCw, Upload } from 'lucide-react';
-import type { LoadedFile } from '../data';
+import { useBatch } from '../batch';
 import {
   connectFolder, hasRememberedFolder, readPickedFiles, reconnectFolder,
   supportsFolderConnection, type FolderScan,
@@ -13,27 +13,38 @@ import {
  * uploads stay as an escape hatch, and the bundled samples remain until
  * something real replaces them.
  */
-export function FolderSource({
-  onFiles, count,
-}: { onFiles(files: LoadedFile[], scan: FolderScan | null): void; count: number }) {
+export function FolderSource({ count }: { count: number }) {
+  const batch = useBatch();
   const [scan, setScan] = useState<FolderScan | null>(null);
-  const [busy, setBusy] = useState<{ done: number; total: number } | null>(null);
+  const [reading, setReading] = useState<{ done: number; total: number } | null>(null);
   const [remembered, setRemembered] = useState(false);
   const canConnect = supportsFolderConnection();
 
   useEffect(() => { void hasRememberedFolder().then(setRemembered); }, []);
 
+  // Reading and parsing are two passes over the same files, and both are
+  // reported: a stalled progress bar with no explanation is what a crash looks
+  // like from the outside.
+  const busy = reading ?? batch.progress;
+  const phase = reading ? 'reading' : batch.progress ? 'parsing' : null;
+
   async function run(fn: () => Promise<FolderScan | null>) {
-    setBusy({ done: 0, total: 0 });
+    setReading({ done: 0, total: 0 });
     try {
       const result = await fn();
-      if (result) { setScan(result); onFiles(result.files, result); }
+      setReading(null);
+      if (result) {
+        setScan(result);
+        // Hand over the files and let go of them here: the batch keeps the
+        // tickets, not the text.
+        await batch.load(result.files, result.name);
+      }
     } finally {
-      setBusy(null);
+      setReading(null);
     }
   }
 
-  const progress = (done: number, total: number) => setBusy({ done, total });
+  const progress = (done: number, total: number) => setReading({ done, total });
 
   return (
     <div className="card p-4 space-y-3">
@@ -74,7 +85,7 @@ export function FolderSource({
           </div>
           <p className="text-[12px] text-slate-500 mt-1.5 font-mono tabular-nums">
             {busy.total
-              ? `reading ${busy.done.toLocaleString()} of ${busy.total.toLocaleString()} files`
+              ? `${phase} ${busy.done.toLocaleString()} of ${busy.total.toLocaleString()} files`
               : 'opening the folder…'}
           </p>
         </div>

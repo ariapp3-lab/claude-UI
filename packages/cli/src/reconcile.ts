@@ -10,7 +10,8 @@
  */
 
 import {
-  DEFAULT_GEO, calculate, evaluateRule, journeyDestination, formatMoney, isZero, subtract, sum, zero,
+  DEFAULT_GEO, calculate, evaluateRule, journeyDestination, formatMoney, isZero,
+  subtract, sum, zero,
   type Money, type Rule, type RuleMatch, type TicketDocument, type Waterfall,
 } from "@commission/engine";
 
@@ -59,7 +60,15 @@ export interface Finding {
    */
   readonly recoverable: Money | null;
   readonly explanation: string;
-  readonly waterfall: Waterfall;
+  /**
+   * The document itself, not the calculation.
+   *
+   * A batch is thousands of documents and only the handful someone opens needs
+   * a waterfall; retaining one per finding held tens of megabytes of condition
+   * traces that nothing ever read. Recompute it on demand — it costs
+   * microseconds — with `calculate({ ticket, rules })`.
+   */
+  readonly ticket: TicketDocument;
 }
 
 export interface BatchTotals {
@@ -307,7 +316,7 @@ export function reconcile(
       variance: subtract(claimed, entitled),
       recoverable: atStake,
       explanation,
-      waterfall: w,
+      ticket,
     });
   }
 

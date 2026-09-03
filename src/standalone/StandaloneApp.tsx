@@ -7,6 +7,7 @@ import StatementPage from '../commission/pages/StatementPage';
 import TicketsPage from '../commission/pages/TicketsPage';
 import ContractPage from '../commission/pages/ContractPage';
 import { WorkspaceProvider } from '../commission/workspace';
+import { BatchProvider } from '../commission/batch';
 
 /**
  * The standalone product.
@@ -33,6 +34,7 @@ export default function StandaloneApp() {
 
   return (
     <WorkspaceProvider defaultView="host">
+      <BatchProvider>
       <div className="flex h-screen overflow-hidden bg-surface-subtle">
         <aside className="flex flex-col w-52 shrink-0 bg-sidebar-bg">
           <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-800">
@@ -74,6 +76,7 @@ export default function StandaloneApp() {
           {active.el}
         </main>
       </div>
+      </BatchProvider>
     </WorkspaceProvider>
   );
 }

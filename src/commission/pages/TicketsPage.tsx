@@ -2,13 +2,12 @@ import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Download, Search, Upload } from 'lucide-react';
 import { calculate, formatMoney } from '@commission/engine';
-import type { Waterfall } from '@commission/engine';
+import type { Rule, TicketDocument } from '@commission/engine';
 import { Amount, Panel, Pill, StatCard, type Tone } from '../components/primitives';
 import { FolderSource } from '../components/FolderSource';
 import { TraceView, WaterfallView } from '../components/Waterfall';
-import {
-  BUNDLED_FILES, detectConsolidators, money, priceFiles, routeOf, type LoadedFile,
-} from '../data';
+import { detectConsolidators, money, routeOf } from '../data';
+import { useBatch } from '../batch';
 import { useWorkspace, WorkspaceBar } from '../workspace';
 
 /**
@@ -34,20 +33,20 @@ interface Row {
   readonly issueDate: string;
   readonly baseFare: { units: bigint; currency: string };
   readonly earns: { units: bigint; currency: string };
-  readonly waterfall: Waterfall;
+  /** The document, not the calculation — see the note in Finding. */
+  readonly ticket: TicketDocument;
   readonly haystack: string;
 }
 
 export default function TicketsPage() {
   const { rules, subAgentId, view } = useWorkspace();
-  const [files, setFiles] = useState<LoadedFile[]>(BUNDLED_FILES);
+  const batch = useBatch();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('earns');
   const [limit, setLimit] = useState(PAGE);
   const [open, setOpen] = useState<string | null>(null);
 
-  const batch = useMemo(() => priceFiles(files), [files]);
-  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch]);
+  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch.passengers]);
 
   const rows = useMemo<Row[]>(() => batch.passengers.map((p) => {
     const t = p.ticket;
@@ -60,10 +59,10 @@ export default function TicketsPage() {
       paxType: t.paxType, route, classes, documentType: t.documentType,
       issueDate: t.issueDate, baseFare: t.baseFare,
       earns: subAgentId ? (w.subAgent?.commission ?? w.carrier.commission) : w.carrier.commission,
-      waterfall: w,
+      ticket: t,
       haystack: `${t.ticketNumber} ${name} ${route} ${classes} ${t.documentType} ${t.issueDate}`.toLowerCase(),
     };
-  }), [batch, rules, subAgentId]);
+  }), [batch.passengers, rules, subAgentId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -118,23 +117,23 @@ export default function TicketsPage() {
             <input type="file" multiple className="hidden"
                    onChange={async (e) => {
                      const list = e.target.files; if (!list) return;
-                     const added: LoadedFile[] = [];
-                     for (const f of Array.from(list)) {
-                       added.push({ name: f.name, text: await f.text(), bundled: false });
-                     }
-                     setFiles((prev) => [...prev.filter((p) => !p.bundled), ...added]);
+                     const added = await Promise.all(Array.from(list).map(async (f) => ({
+                       name: f.name, text: await f.text(), bundled: false,
+                     })));
+                     await batch.load(added, 'selected files');
                    }} />
           </label>
           <button className="btn-primary" onClick={exportCsv}><Download size={14} /> CSV</button>
         </div>
       </div>
 
-      <FolderSource count={files.filter((f) => f.bundled).length}
-                    onFiles={(loaded) => { setFiles(loaded); setLimit(PAGE); }} />
+      <FolderSource count={batch.fileCount} />
 
       <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(178px,1fr))]">
         <StatCard label="Documents" value={filtered.length.toLocaleString()}
-                  note={query ? `of ${rows.length.toLocaleString()} matching "${query}"` : `${batch.fileCount} files`} />
+                  note={query
+                    ? `of ${rows.length.toLocaleString()} matching "${query}"`
+                    : `${batch.fileCount.toLocaleString()} files`} />
         <StatCard label="Earning" value={earning.toLocaleString()}
                   tone={earning > 0 ? 'ok' : undefined} note="carry commission" />
         <StatCard label={view === 'subagent' ? 'My commission' : 'Carrier commission'}
@@ -184,7 +183,7 @@ export default function TicketsPage() {
             </thead>
             <tbody>
               {shown.map((r) => (
-                <TicketRow key={r.ticketNumber} r={r}
+                <TicketRow key={r.ticketNumber} r={r} rules={rules}
                            open={open === r.ticketNumber}
                            onToggle={() => setOpen(open === r.ticketNumber ? null : r.ticketNumber)} />
               ))}
@@ -208,8 +207,11 @@ export default function TicketsPage() {
   );
 }
 
-function TicketRow({ r, open, onToggle }: { r: Row; open: boolean; onToggle: () => void }) {
+function TicketRow({ r, rules, open, onToggle }: {
+  r: Row; rules: readonly Rule[]; open: boolean; onToggle: () => void;
+}) {
   const paxTone: Tone | undefined = r.paxType === 'CHD' || r.paxType === 'INF' ? 'info' : undefined;
+  const w = open ? calculate({ ticket: r.ticket, rules }) : null;
   return (
     <>
       <tr onClick={onToggle} className="cursor-pointer hover:bg-surface-subtle border-b border-surface-border">
@@ -226,7 +228,7 @@ function TicketRow({ r, open, onToggle }: { r: Row; open: boolean; onToggle: () 
         <td className="px-4 py-2.5 text-right"><Amount m={r.baseFare} /></td>
         <td className="px-4 py-2.5 text-right"><Amount m={r.earns} bold /></td>
       </tr>
-      {open && (
+      {open && w && (
         <tr className="bg-surface-subtle border-b border-surface-border">
           <td colSpan={8} className="p-4">
             <div className="grid gap-4 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] items-start">
@@ -234,13 +236,13 @@ function TicketRow({ r, open, onToggle }: { r: Row; open: boolean; onToggle: () 
                 <h3 className="font-mono text-[10px] uppercase tracking-[0.09em] text-slate-400 mb-2">
                   Calculation
                 </h3>
-                <WaterfallView w={r.waterfall} />
+                <WaterfallView w={w!} />
               </div>
               <div className="card p-4 min-w-0">
                 <h3 className="font-mono text-[10px] uppercase tracking-[0.09em] text-slate-400 mb-2">
                   Why — every condition tested
                 </h3>
-                <TraceView w={r.waterfall} />
+                <TraceView w={w!} />
               </div>
             </div>
           </td>

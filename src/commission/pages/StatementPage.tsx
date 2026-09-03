@@ -4,9 +4,8 @@ import { Upload } from 'lucide-react';
 import { parseStatementCsv, type StatementParseResult } from '@commission/parsers';
 import { settle, type SettlementRow } from '../../../packages/cli/src/statement';
 import { Amount, Note, Panel, Pill, StatCard, type Tone } from '../components/primitives';
-import {
-  BUNDLED_FILES, detectConsolidators, money, priceFiles, routeOf, type LoadedFile,
-} from '../data';
+import { detectConsolidators, money, routeOf } from '../data';
+import { useBatch } from '../batch';
 import { useWorkspace, WorkspaceBar } from '../workspace';
 
 const TONE_OF: Record<string, Tone> = { critical: 'critical', warning: 'warning', ok: 'ok' };
@@ -20,12 +19,11 @@ const TONE_OF: Record<string, Tone> = { critical: 'critical', warning: 'warning'
  */
 export default function StatementPage() {
   const { consolidator, rules, subAgentId, view } = useWorkspace();
-  const [airFiles, setAirFiles] = useState<LoadedFile[]>(BUNDLED_FILES);
+  const batch = useBatch();
   const [statementText, setStatementText] = useState<string | null>(null);
   const [statementName, setStatementName] = useState<string | null>(null);
 
-  const batch = useMemo(() => priceFiles(airFiles), [airFiles]);
-  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch]);
+  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch.passengers]);
   const parsed: StatementParseResult | null = useMemo(
     () => (statementText ? parseStatementCsv(statementText) : null),
     [statementText],
@@ -49,9 +47,10 @@ export default function StatementPage() {
 
   async function loadAir(list: FileList | null) {
     if (!list) return;
-    const added: LoadedFile[] = [];
-    for (const f of Array.from(list)) added.push({ name: f.name, text: await f.text(), bundled: false });
-    setAirFiles((prev) => [...prev.filter((p) => !p.bundled), ...added]);
+    const added = await Promise.all(Array.from(list).map(async (f) => ({
+      name: f.name, text: await f.text(), bundled: false,
+    })));
+    await batch.load(added, 'selected files');
   }
 
   return (

@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { ChevronRight, Download, Upload } from 'lucide-react';
+import { calculate, type Rule } from '@commission/engine';
 import type { Finding } from '@commission/cli';
 import { toCsv } from '../../../packages/cli/src/report';
 import { Amount, Note, Panel, Pill, StatCard, type Tone } from '../components/primitives';
 import { FolderSource } from '../components/FolderSource';
 import { TraceView, WaterfallView } from '../components/Waterfall';
-import {
-  BUNDLED_FILES, detectConsolidators, money, priceFiles, type LoadedFile,
-} from '../data';
+import { detectConsolidators, money, priceBatch } from '../data';
+import { useBatch } from '../batch';
 import { useWorkspace, WorkspaceBar } from '../workspace';
 
 /** The table is a work queue, not an archive; the export is the archive. */
@@ -19,15 +19,17 @@ const TONE_OF: Record<string, Tone> = {
 };
 
 export default function ReconciliationPage() {
-  const { consolidator } = useWorkspace();
-  const [files, setFiles] = useState<LoadedFile[]>(BUNDLED_FILES);
+  const { consolidator, rules } = useWorkspace();
+  const batch = useBatch();
   const [open, setOpen] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [limit, setLimit] = useState(ROWS_PER_PAGE);
 
-  const batch = useMemo(() => priceFiles(files), [files]);
-  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch]);
-  const { result } = batch;
+  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch.passengers]);
+  const result = useMemo(
+    () => priceBatch(batch.passengers, rules, batch.warnings),
+    [batch.passengers, batch.warnings, rules],
+  );
   const t = result.totals;
 
   // A week can be several thousand documents. Findings are already ranked by
@@ -40,11 +42,10 @@ export default function ReconciliationPage() {
 
   async function onDrop(list: FileList | null) {
     if (!list) return;
-    const added: LoadedFile[] = [];
-    for (const f of Array.from(list)) {
-      added.push({ name: f.name, text: await f.text(), bundled: false });
-    }
-    setFiles((prev) => [...prev.filter((p) => !p.bundled), ...added]);
+    const added = await Promise.all(Array.from(list).map(async (f) => ({
+      name: f.name, text: await f.text(), bundled: false,
+    })));
+    await batch.load(added, 'selected files');
   }
 
   function exportCsv() {
@@ -63,7 +64,7 @@ export default function ReconciliationPage() {
         <div>
           <h1 className="text-[21px] font-semibold tracking-tight text-slate-900">Reconciliation</h1>
           <p className="text-[13.5px] text-slate-600 mt-1 max-w-[62ch]">
-            {batch.fileCount} file{batch.fileCount === 1 ? '' : 's'} priced against{' '}
+            {batch.passengers.length.toLocaleString()} document(s) from {batch.source} priced against{' '}
             {consolidator.name}'s carrier contracts. Every figure is computed here from the
             documents themselves — nothing is stored and nothing is estimated.
           </p>
@@ -76,8 +77,7 @@ export default function ReconciliationPage() {
         </label>
       </div>
 
-      <FolderSource count={files.filter((f) => f.bundled).length}
-                    onFiles={(loaded) => setFiles(loaded)} />
+      <FolderSource count={batch.fileCount} />
 
       <Note tone="warning" title="Clause 8 — commission may be claimed at ticketing only.">
         No retroactive settlement is made for commission not taken at the time of
@@ -86,7 +86,7 @@ export default function ReconciliationPage() {
 
       <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(178px,1fr))]">
         <StatCard label="Documents priced" value={String(t.documents)}
-                  note={`${batch.fileCount} source file${batch.fileCount === 1 ? '' : 's'}`} />
+                  note={`${batch.fileCount.toLocaleString()} source file(s)`} />
         <StatCard label="Fare value" value={money(t.fareValue)} note="USD, base fare" />
         <StatCard label="Commission claimed" value={money(t.claimed)} />
         {t.forfeited.units > 0n && (
@@ -141,7 +141,7 @@ export default function ReconciliationPage() {
             </thead>
             <tbody>
               {rows.map((f) => (
-                <Row key={f.ticketNumber} f={f}
+                <Row key={f.ticketNumber} f={f} rules={rules}
                      open={open === f.ticketNumber}
                      onToggle={() => setOpen(open === f.ticketNumber ? null : f.ticketNumber)} />
               ))}
@@ -167,10 +167,16 @@ export default function ReconciliationPage() {
         </div>
       </Panel>
 
-      {(result.warnings.length > 0 || batch.failures.length > 0) && (
+      {(result.warnings.length > 0 || batch.failures.length > 0 || batch.skipped > 0) && (
         <Panel title="Parse notes"
                subtitle="What the reader could not resolve, reported rather than absorbed">
           <ul className="space-y-1.5">
+            {batch.skipped > 0 && (
+              <li className="text-[12.5px] text-slate-500">
+                <span className="text-slate-300 mr-2">·</span>
+                {batch.skipped.toLocaleString()} file(s) held no ticket and were skipped
+              </li>
+            )}
             {batch.failures.map((w, i) => (
               <li key={`f${i}`} className="text-[12.5px] text-red-700 font-mono">{w}</li>
             ))}
@@ -186,8 +192,13 @@ export default function ReconciliationPage() {
   );
 }
 
-function Row({ f, open, onToggle }: { f: Finding; open: boolean; onToggle: () => void }) {
+function Row({ f, rules, open, onToggle }: {
+  f: Finding; rules: readonly Rule[]; open: boolean; onToggle: () => void;
+}) {
   const stake = f.recoverable ?? f.variance;
+  // Computed only for the row someone opened. Retaining one per finding held
+  // tens of megabytes of condition traces that nothing ever read.
+  const w = open ? calculate({ ticket: f.ticket, rules }) : null;
   return (
     <>
       <tr onClick={onToggle}
@@ -215,7 +226,7 @@ function Row({ f, open, onToggle }: { f: Finding; open: boolean; onToggle: () =>
           <ChevronRight size={15} className={clsx('transition-transform', open && 'rotate-90')} />
         </td>
       </tr>
-      {open && (
+      {open && w && (
         <tr className="bg-surface-subtle border-b border-surface-border">
           <td colSpan={8} className="p-4">
             <p className="text-[13px] text-slate-700 mb-3 max-w-[80ch]">{f.explanation}</p>
@@ -224,13 +235,13 @@ function Row({ f, open, onToggle }: { f: Finding; open: boolean; onToggle: () =>
                 <h3 className="font-mono text-[10px] uppercase tracking-[0.09em] text-slate-400 mb-2">
                   What the contract pays
                 </h3>
-                <WaterfallView w={f.waterfall} />
+                <WaterfallView w={w!} />
               </div>
               <div className="card p-4 min-w-0">
                 <h3 className="font-mono text-[10px] uppercase tracking-[0.09em] text-slate-400 mb-2">
                   Why — every condition tested
                 </h3>
-                <TraceView w={f.waterfall} />
+                <TraceView w={w!} />
               </div>
             </div>
           </td>

@@ -4,9 +4,9 @@ import { calculate } from '@commission/engine';
 import { Amount, Note, Panel, Pill, StatCard } from '../components/primitives';
 import { TraceView, WaterfallView } from '../components/Waterfall';
 import {
-  BUNDLED_FILES, HOST_RETAINS_POINTS, detectConsolidators,
-  money, priceFiles, rateCard, routeOf, type LoadedFile,
+  HOST_RETAINS_POINTS, detectConsolidators, money, priceBatch, rateCard, routeOf,
 } from '../data';
+import { useBatch } from '../batch';
 import { useWorkspace, WorkspaceBar } from '../workspace';
 
 /**
@@ -19,11 +19,14 @@ import { useWorkspace, WorkspaceBar } from '../workspace';
  */
 export default function CheckTicketPage() {
   const { consolidator, rules, subAgentId } = useWorkspace();
-  const [files, setFiles] = useState<LoadedFile[]>(BUNDLED_FILES);
+  const batch = useBatch();
   const [selected, setSelected] = useState(0);
 
-  const batch = useMemo(() => priceFiles(files), [files]);
-  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch]);
+  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch.passengers]);
+  const result = useMemo(
+    () => priceBatch(batch.passengers, rules, batch.warnings),
+    [batch.passengers, batch.warnings, rules],
+  );
   const tickets = batch.passengers;
 
   const priced = useMemo(
@@ -42,7 +45,7 @@ export default function CheckTicketPage() {
     for (const { p, w } of priced) {
       earned += w.netToSubAgent.units;
       consolidator += w.hostSpread.units;
-      const f = batch.result.findings.find((x) => x.ticketNumber === p.ticket.ticketNumber);
+      const f = result.findings.find((x) => x.ticketNumber === p.ticket.ticketNumber);
       if (f?.recoverable) {
         // What the agent would take of it: the recoverable fare value less the
         // consolidator's point on the same fare.
@@ -51,13 +54,14 @@ export default function CheckTicketPage() {
       }
     }
     return { earned, consolidator, recoverable };
-  }, [priced, batch]);
+  }, [priced, result]);
 
   async function onDrop(list: FileList | null) {
     if (!list) return;
-    const added: LoadedFile[] = [];
-    for (const f of Array.from(list)) added.push({ name: f.name, text: await f.text(), bundled: false });
-    setFiles((prev) => [...prev.filter((p) => !p.bundled), ...added]);
+    const added = await Promise.all(Array.from(list).map(async (f) => ({
+      name: f.name, text: await f.text(), bundled: false,
+    })));
+    await batch.load(added, 'selected files');
     setSelected(0);
   }
 

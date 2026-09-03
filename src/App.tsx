@@ -9,6 +9,7 @@ import ContractPage from './commission/pages/ContractPage';
 import StatementPage from './commission/pages/StatementPage';
 import TicketsPage from './commission/pages/TicketsPage';
 import { WorkspaceProvider } from './commission/workspace';
+import { BatchProvider } from './commission/batch';
 
 type Page = string;
 
@@ -42,7 +43,7 @@ export default function App() {
       <Sidebar activePage={activePage} onNavigate={setActivePage} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header onNewOrder={() => setActivePage('Orders')} />
-        <WorkspaceProvider>{renderPage()}</WorkspaceProvider>
+        <WorkspaceProvider><BatchProvider>{renderPage()}</BatchProvider></WorkspaceProvider>
       </div>
     </div>
   );
