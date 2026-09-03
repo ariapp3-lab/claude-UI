@@ -94,6 +94,17 @@ export function FolderSource({
         </p>
       )}
 
+      {/* The Windows picker lists folders only, so a folder of loose files looks
+          empty and reads as a failure. Saying so up front costs one line. */}
+      {!scan && !busy && (
+        <p className="text-[12.5px] text-slate-600 max-w-[74ch] bg-surface-subtle border border-surface-border rounded-lg px-3 py-2">
+          <b className="font-semibold">The picker will look empty — that is normal.</b>{' '}
+          It lists folders, not files. Open the folder so its name shows in the
+          <span className="font-mono text-[11.5px]"> Folder:</span> box at the bottom,
+          then click <b className="font-semibold">Select Folder</b>.
+        </p>
+      )}
+
       {!scan && !busy && (
         <p className="text-[12.5px] text-slate-500 max-w-[74ch]">
           {canConnect
