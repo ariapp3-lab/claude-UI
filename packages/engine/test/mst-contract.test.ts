@@ -357,3 +357,72 @@ describe("the markup ceiling", () => {
     expect(formatMoney(a.markupHeadroom!)).toBe("0.00");
   });
 });
+
+describe("the host is never worse off because the agent chose net", () => {
+  /**
+   * The principle behind the net-fare row, stated as a property rather than as
+   * a handful of examples.
+   *
+   * The agent decides whether to take their margin as a markup on a net fare or
+   * as a share of a published commission. That decision is theirs, and it is
+   * not allowed to cost the host anything: whatever the host would have earned
+   * on the same fare issued published, they earn.
+   *
+   * Getting this wrong in the safe-looking direction — treating the cabin
+   * figure as the fee rather than as a floor — quietly underpays the host on
+   * every large fare, and would have the reconciler reporting the host's own
+   * correct deduction as an unexplained one.
+   */
+  const fare = (base: string, rbd: string, fareType: "published" | "net"): TicketDocument =>
+    commissionable({
+      fareType,
+      // No tour code either way, so the carrier commission is nil in both
+      // cases and the comparison isolates what the HOST takes.
+      tourCode: null,
+      baseFare: parseMoney(base, "USD"),
+      total: parseMoney(base, "USD"),
+      coupons: commissionable().coupons.map((c) => ({ ...c, rbd })),
+    });
+
+  /** What the host keeps on a fare, whichever way it was issued. */
+  const hostTakes = (t: TicketDocument): bigint => {
+    const w = run(t);
+    return -w.fees.reduce((n, f) => n + f.amount.units, 0n) + w.hostSpread.units;
+  };
+
+  it("takes at least as much on a net fare as on the same published fare", () => {
+    // Across a wide range of fares, so this cannot pass by picking one.
+    for (const base of ["500.00", "900.00", "1500.00", "3398.75", "12378.75", "40000.00"]) {
+      for (const rbd of ["Y", "W", "J"]) {
+        const published = hostTakes(fare(base, rbd, "published"));
+        const net = hostTakes(fare(base, rbd, "net"));
+        expect(
+          net >= published,
+          `${base} in ${rbd}: net fare gives the host ${net}, published gives ${published}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("takes exactly the published point once the fare clears the floor", () => {
+    // Above the floor the two coincide: the host is made whole, not enriched.
+    // 1% of 12,378.75 = 123.79, well clear of the $50 business floor.
+    const w = run(fare("12378.75", "J", "net"));
+    expect(formatMoney(w.fees[0]!.amount)).toBe("-123.79");
+  });
+
+  it("falls back to the floor only where a point of the fare is smaller", () => {
+    // 1% of 900.00 = 9.00, under the $15 economy floor.
+    const w = run(fare("900.00", "Y", "net"));
+    expect(formatMoney(w.fees[0]!.amount)).toBe("-15.00");
+  });
+
+  it("scales with the fare rather than sitting flat", () => {
+    // The failing behaviour this replaced: one figure per cabin regardless of
+    // fare, which understated the host by $73.79 on the sample business ticket.
+    const small = run(fare("5000.00", "J", "net")).fees[0]!.amount.units;
+    const large = run(fare("50000.00", "J", "net")).fees[0]!.amount.units;
+    expect(large).toBeLessThan(small);
+    expect(large).toBe(small * 10n);
+  });
+});

@@ -271,11 +271,12 @@ export function seedConfig(): Config {
         requiredTourCode: '0NYZE71545',
         originIn: ['US', 'CA'],
         scope: 'half_rt',
-        // Both marked-up records in the folder sit at exactly 25.0000% of the
-        // net fare, to four decimal places — the signature of a ceiling being
-        // marked to, not a margin chosen per booking. Recorded as observed and
-        // pending confirmation from EL AL; see OPEN_QUESTIONS.
-        maxMarkupPercent: '25.00',
+        // Deliberately unset. Two sampled tickets both sit at 25% of the net
+        // fare, but the permitted markup is not a single number — it varies by
+        // fare, and inferring a contract term from two records would report
+        // every ticket above that figure as a debit-memo exposure it is not.
+        // An unset ceiling reports as unknown, which is the truth.
+        maxMarkupPercent: '',
         markupBasis: 'net',
         excludeFareTypes: ['group', 'private', 'consolidator'],
         notes: commission?.source?.clause

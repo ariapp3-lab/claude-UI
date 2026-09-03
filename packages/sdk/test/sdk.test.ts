@@ -308,22 +308,23 @@ describe("the markup ceiling", () => {
   const priced = (name: string) =>
     priceAirFile(read(name), { config, view: "subagent" }).documents[0]!;
 
-  it("reports the markup as a percentage of the contract's basis", () => {
-    // Both marked-up records sit at exactly 25% of the net fare.
-    expect(priced("amadeus-air-ly-markup.air").markupPercent).toBe("25.0000");
-    expect(priced("amadeus-air-ly-bt.air").markupPercent).toBe("25.0000");
-  });
-
-  it("reads a markup filed exactly at the ceiling as exactly the ceiling", () => {
-    // Computed in integers precisely so this cannot come back 24.9999.
+  it("reports an unconfigured ceiling as unknown, not as zero", () => {
+    // The permitted markup varies by fare and is not configured for this
+    // contract. Reporting it as zero would flag every marked-up ticket in the
+    // folder as a debit-memo exposure it is not — so both fields read null,
+    // and the markup itself is still reported.
     const doc = priced("amadeus-air-ly-markup.air");
-    expect(doc.markupPercent).toBe("25.0000");
-    expect(doc.markupHeadroom).toBe("0.00");
-  });
-
-  it("raises no flag on a ticket inside the ceiling", () => {
-    const doc = priced("amadeus-air-ly-markup.air");
+    expect(doc.markup).toBe("679.75");
+    expect(doc.markupPercent).toBeNull();
+    expect(doc.markupHeadroom).toBeNull();
     expect(doc.flags.filter((f) => /markup/.test(f.message))).toEqual([]);
+  });
+
+  it("reports the markup itself whether or not a ceiling is known", () => {
+    // The margin is a fact about the ticket; the ceiling is a contract term.
+    // Not knowing the second must not suppress the first.
+    expect(priced("amadeus-air-ly-bt.air").markup).toBe("2475.75");
+    expect(priced("amadeus-air-ly-bt.air").markupPercent).toBeNull();
   });
 
   it("reports nothing on a published fare, which has no markup to cap", () => {

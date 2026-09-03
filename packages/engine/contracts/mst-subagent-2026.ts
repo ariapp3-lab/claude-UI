@@ -158,10 +158,16 @@ export const MST_LY_EXCHANGE_SHARE: Rule = {
  * share: the agent marks the fare up and keeps the markup, and MST is paid for
  * the ticketing rather than out of the airline's money.
  *
- * The cabin figure is a FLOOR, not the fee. Footnote 2 says "if MST's fee for a
- * published fare is higher than the net-fare fee, the higher fee will apply" —
- * MST takes what it would have earned had the same fare been issued published
- * with commission, and the cabin figure applies only where that comes to less.
+ * The governing principle, of which footnote 2 is only the wording: THE HOST
+ * CANNOT BE WORSE OFF BECAUSE THE AGENT CHOSE TO ISSUE NET. Whatever MST would
+ * have earned had the same fare gone out published with commission, they earn.
+ * The agent's decision to take their margin as markup instead of taking a
+ * commission split is theirs to make, and it is not allowed to cost MST
+ * anything. The cabin figure is a floor beneath that, for fares small enough
+ * that a point of them comes to very little.
+ *
+ * Read the row as a flat fee and it understates the charge on every large
+ * fare — $50 where $123.79 is owed on the sample business ticket.
  *
  * So the fee is max(the published-fare point on this fare, the cabin figure),
  * which is exactly what `rate` plus `minimum` computes. On a $12,378 bulk
