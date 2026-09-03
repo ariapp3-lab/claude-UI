@@ -185,7 +185,9 @@ function netFareFee(
     approved: true,
     match: {
       validatingCarrier: carrier === "LY" ? "LY" : { notIn: ["LY"] },
-      fareType: { in: ["bulk", "net"] },
+      // A BT/IT fare parses as "net" — there is no "bulk" fare type. The
+      // ticket's `bulk` flag records how it was filed; the fare TYPE is net.
+      fareType: { in: ["net"] },
       documentType: { in: ["TKT"] },
       rbd: { in: [...CABIN_BY_RBD[cabin]] },
     },

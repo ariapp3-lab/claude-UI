@@ -166,6 +166,14 @@ export interface CarrierContract {
   readonly originIn: readonly string[];
   /** Priced once per ticket, or once per direction of travel. */
   readonly scope: 'ticket' | 'half_rt';
+  /**
+   * How far a net or bulk fare may be marked up, as a percentage. Empty means
+   * the ceiling is not known — which is NOT the same as a ceiling of zero, and
+   * is reported as unknown rather than as every ticket being over.
+   */
+  readonly maxMarkupPercent?: string;
+  /** Whether that ceiling is struck on the net fare or the selling fare. */
+  readonly markupBasis?: 'net' | 'selling';
   /** Fare types the contract excludes outright. */
   readonly excludeFareTypes: readonly string[];
   readonly notes: string;
@@ -263,6 +271,12 @@ export function seedConfig(): Config {
         requiredTourCode: '0NYZE71545',
         originIn: ['US', 'CA'],
         scope: 'half_rt',
+        // Both marked-up records in the folder sit at exactly 25.0000% of the
+        // net fare, to four decimal places — the signature of a ceiling being
+        // marked to, not a margin chosen per booking. Recorded as observed and
+        // pending confirmation from EL AL; see OPEN_QUESTIONS.
+        maxMarkupPercent: '25.00',
+        markupBasis: 'net',
         excludeFareTypes: ['group', 'private', 'consolidator'],
         notes: commission?.source?.clause
           ? `Rates from ${commission.source.clause}. Commission per half round trip on the class booked.`
@@ -296,6 +310,19 @@ export function compileContract(
     approved: true,
     effective: { issuedBetween: { from: contract.issuedFrom, to: contract.issuedTo } },
     source: { document: contract.title, extractedBy: 'human' as const },
+    // Carried by EVERY rule this contract compiles, not just the paying one.
+    // The paying clauses match published fares only, so on a bulk fare the rule
+    // that fires is an exclusion — and that is exactly the ticket whose markup
+    // ceiling matters. The allowance belongs to the contract, so whichever of
+    // its clauses fires can answer for it.
+    ...(contract.maxMarkupPercent?.trim()
+      ? {
+          markupAllowance: {
+            maxPercent: contract.maxMarkupPercent.trim(),
+            basis: contract.markupBasis ?? 'net',
+          },
+        }
+      : {}),
   };
   // Each compiled rule names the condition it enforces. Without it a result
   // says only that nothing is due, which is the least useful true statement

@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 import { calculate } from "../src/calculate.js";
 import { formatMoney, parseMoney } from "../src/money.js";
 import {
-  type CarrierContract, type Config, type StoredConsolidator, type SubAgentAgreement,
+  type CarrierContract, type StoredConsolidator, type SubAgentAgreement,
   carrierRulesFor, compileSubAgentRules, newId,
 } from "../contracts/config.js";
 import type { Coupon, TicketDocument } from "../src/types.js";
@@ -214,7 +214,7 @@ describe("level 3 - fees are independent of the split", () => {
         fee({ id: "even", label: "even exchange", trigger: "even_exchange", amount: "0.00" }),
         fee({ id: "rf", label: "refund", trigger: "refund", amount: "25.00" }),
         fee({ id: "biz", label: "net fare, business", trigger: "every_ticket",
-              fareTypes: ["bulk", "net"], rbds: ["J", "C", "D", "I", "Z"], amount: "50.00" }),
+              fareTypes: ["net"], rbds: ["J", "C", "D", "I", "Z"], amount: "50.00" }),
       ],
       notes: "", files: [],
     }],
@@ -246,7 +246,7 @@ describe("level 3 - fees are independent of the split", () => {
   });
 
   it("charges the cabin fee on a bulk fare in business", () => {
-    const w = price(o, ticket({ fareType: "bulk", coupons: coupons("J") }), "appel");
+    const w = price(o, ticket({ fareType: "net", coupons: coupons("J") }), "appel");
     expect(w.fees.map((f) => f.ruleId)).toContain("ag-FEE-biz");
     expect(formatMoney(w.netToSubAgent)).toBe("-50.00");
   });
@@ -265,12 +265,12 @@ describe("level 3 - fees are independent of the split", () => {
         fees: [
           fee({ id: "nc", label: "non-commissionable", trigger: "non_commissionable", amount: "10.00" }),
           fee({ id: "biz", label: "net fare, business", trigger: "every_ticket",
-                fareTypes: ["bulk", "net"], rbds: ["J"], amount: "50.00" }),
+                fareTypes: ["net"], rbds: ["J"], amount: "50.00" }),
         ],
         notes: "", files: [],
       }],
     });
-    const w = price(unscoped, ticket({ fareType: "bulk", coupons: coupons("J") }), "appel");
+    const w = price(unscoped, ticket({ fareType: "net", coupons: coupons("J") }), "appel");
     expect(w.fees).toHaveLength(2);
     expect(formatMoney(w.netToSubAgent)).toBe("-60.00");
   });

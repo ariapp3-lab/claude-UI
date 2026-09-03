@@ -36,6 +36,7 @@ import { type MatchContext, selectRule } from "./match.js";
 import type {
   Award,
   BasisComponent,
+  Outcome,
   BasisTrace,
   ConditionTrace,
   Coupon,
@@ -984,7 +985,7 @@ function feeLabel(rule: Rule): string {
   const fareTypes = rule.match.fareType;
   const isNetFare =
     fareTypes && typeof fareTypes === "object" && fareTypes.in
-      ? fareTypes.in.some((f) => f === "bulk" || f === "net")
+      ? fareTypes.in.some((f) => f === "net")
       : false;
   if (isNetFare) return "net fare fee";
   if (rule.match.upstreamCommission === "nil") return "non-commissionable fee";
@@ -1217,6 +1218,7 @@ export function calculate(
   );
 
   const payable = add(netToSubAgent, markup);
+  const allowance = markupAllowanceFor(rules, carrier.ruleId, ticket, markup, flags);
 
   return {
     ticketNumber: ticket.ticketNumber,
@@ -1231,6 +1233,61 @@ export function calculate(
     netToSubAgent,
     markup,
     payable,
+    markupPercent: allowance.percent,
+    markupHeadroom: allowance.headroom,
     flags,
   };
+}
+
+/**
+ * Compare the markup actually taken against what the contract permits.
+ *
+ * On a net fare the markup IS the commission — the airline files a fare and
+ * lets the agent set their own margin up to a ceiling — so both directions of
+ * error cost money, in opposite ways. Over the ceiling is a debit-memo
+ * exposure. Under it is revenue the agent was entitled to and did not take,
+ * which no statement will ever show as missing because nobody was short-paid.
+ *
+ * A ceiling that is not configured yields nulls rather than zero: an unknown
+ * ceiling must never read as "no markup permitted".
+ */
+function markupAllowanceFor(
+  rules: readonly Rule[],
+  ruleId: string | undefined,
+  ticket: TicketDocument,
+  markup: Money,
+  flags: { code: Outcome | "REVIEW"; message: string }[],
+): { percent: string | null; headroom: Money | null } {
+  const currency = ticket.currency;
+  const allowance = rules.find((r) => r.id === ruleId)?.markupAllowance;
+  if (!allowance || !ticket.netFare || isZero(ticket.netFare)) {
+    return { percent: null, headroom: null };
+  }
+
+  // The ceiling is struck on the net fare or on the selling fare depending on
+  // how the contract words it, and the two are different numbers.
+  const basis = allowance.basis === "net" ? ticket.netFare : ticket.baseFare;
+  if (isZero(basis)) return { percent: null, headroom: null };
+
+  const permitted = applyRate(basis, allowance.maxPercent, "half_up");
+  const headroom = subtract(permitted, markup);
+
+  // Percentage to four decimal places, computed in integers: a markup filed
+  // exactly at the ceiling has to read exactly as the ceiling, not 19.9999%.
+  const scaled = (markup.units * 1_000_000n) / basis.units;
+  const percent = `${scaled / 10_000n}.${String(
+    (scaled < 0n ? -scaled : scaled) % 10_000n,
+  ).padStart(4, "0")}`;
+
+  if (isNegative(headroom)) {
+    flags.push({
+      code: "REVIEW",
+      message:
+        `markup of ${formatMoney(markup)} ${currency} is ${percent}% of the ` +
+        `${allowance.basis} fare, above the ${allowance.maxPercent}% the contract ` +
+        `permits — ${formatMoney(negate(headroom))} over, and a debit-memo exposure`,
+    });
+  }
+
+  return { percent, headroom };
 }

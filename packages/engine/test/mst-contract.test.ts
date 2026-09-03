@@ -97,14 +97,14 @@ describe("§3 — a fare that earns nothing still costs money", () => {
   });
 
   it("charges $15 on an LY bulk fare in economy, not the $10", () => {
-    const w = run(commissionable({ fareType: "bulk", tourCode: null }));
+    const w = run(commissionable({ fareType: "net", tourCode: null }));
     expect(formatMoney(w.netToSubAgent)).toBe("-15.00");
     expect(w.fees.map((f) => f.ruleId)).toEqual(["MST-FEE-NET-LY-ECONOMY"]);
   });
 
   it("charges $50 on an LY bulk fare in business", () => {
     const w = run(commissionable({
-      fareType: "bulk",
+      fareType: "net",
       tourCode: null,
       coupons: commissionable().coupons.map((c) => ({ ...c, rbd: "J" })),
     }));
@@ -113,7 +113,7 @@ describe("§3 — a fare that earns nothing still costs money", () => {
 
   it("charges $20, not $15, on a bulk fare on any other carrier", () => {
     const w = run(commissionable({
-      fareType: "bulk",
+      fareType: "net",
       validatingCarrier: "LH",
       tourCode: null,
       coupons: commissionable().coupons.map((c) => ({ ...c, marketingCarrier: "LH" })),
@@ -233,7 +233,7 @@ describe("§3 footnote 2 — the cabin figure is a floor, not the fee", () => {
    */
   const bulk = (base: string, rbd: string): TicketDocument =>
     commissionable({
-      fareType: "bulk",
+      fareType: "net",
       tourCode: null,
       baseFare: parseMoney(base, "USD"),
       total: parseMoney(base, "USD"),
@@ -259,7 +259,7 @@ describe("§3 footnote 2 — the cabin figure is a floor, not the fee", () => {
 
   it("takes two points, not one, on a carrier that is not LY", () => {
     const other = run(commissionable({
-      fareType: "bulk",
+      fareType: "net",
       validatingCarrier: "LH",
       tourCode: null,
       baseFare: parseMoney("10000.00", "USD"),
@@ -274,5 +274,86 @@ describe("§3 footnote 2 — the cabin figure is a floor, not the fee", () => {
     // the net-fares row, not on a bare number.
     const w = run(bulk("12378.75", "C"));
     expect(w.fees[0]!.clause).toContain("Net fares");
+  });
+});
+
+describe("the markup ceiling", () => {
+  /**
+   * The airline files a net fare and permits a markup up to a limit. Both
+   * directions of error cost money, and only one of them is ever visible on a
+   * statement.
+   */
+  const withCeiling = RULES.map((r) =>
+    r.layer === "carrier_to_host"
+      ? { ...r, markupAllowance: { maxPercent: "25.00", basis: "net" as const } }
+      : r,
+  );
+
+  const netFare = (net: string, selling: string): TicketDocument =>
+    commissionable({
+      fareType: "net",
+      tourCode: null,
+      baseFare: parseMoney(selling, "USD"),
+      netFare: parseMoney(net, "USD"),
+      total: parseMoney(selling, "USD"),
+    });
+
+  const price = (t: TicketDocument) =>
+    calculate({ ticket: t, rules: withCeiling, subAgentId: "subagent" });
+
+  it("reports headroom where the agent marked up under the ceiling", () => {
+    // 1,000 net sold at 1,100: a 10% markup where 25% was permitted. Nobody
+    // short-paid anything, so no statement will ever show this as missing —
+    // and it is 150.00 the contract allowed and the agent did not take.
+    const w = price(netFare("1000.00", "1100.00"));
+    expect(formatMoney(w.markup)).toBe("100.00");
+    expect(w.markupPercent).toBe("10.0000");
+    expect(formatMoney(w.markupHeadroom!)).toBe("150.00");
+    expect(w.flags.filter((f) => /markup/.test(f.message))).toEqual([]);
+  });
+
+  it("flags a markup above the ceiling as a debit-memo exposure", () => {
+    // 1,000 net sold at 1,400: 40% where 25% was permitted.
+    const w = price(netFare("1000.00", "1400.00"));
+    expect(w.markupPercent).toBe("40.0000");
+    expect(formatMoney(w.markupHeadroom!)).toBe("-150.00");
+    const flag = w.flags.find((f) => /markup/.test(f.message));
+    expect(flag?.code).toBe("REVIEW");
+    expect(flag?.message).toContain("debit-memo exposure");
+    expect(flag?.message).toContain("25.00%");
+  });
+
+  it("reads a markup exactly at the ceiling as neither over nor under", () => {
+    const w = price(netFare("1000.00", "1250.00"));
+    expect(w.markupPercent).toBe("25.0000");
+    expect(formatMoney(w.markupHeadroom!)).toBe("0.00");
+    expect(w.flags.filter((f) => /markup/.test(f.message))).toEqual([]);
+  });
+
+  it("says nothing where no ceiling is configured", () => {
+    // An unknown ceiling must never read as a ceiling of zero, which would
+    // report every marked-up ticket in the folder as over the limit.
+    const w = calculate({
+      ticket: netFare("1000.00", "1400.00"),
+      rules: RULES,
+      subAgentId: "subagent",
+    });
+    expect(w.markupPercent).toBeNull();
+    expect(w.markupHeadroom).toBeNull();
+    expect(w.flags.filter((f) => /markup/.test(f.message))).toEqual([]);
+  });
+
+  it("distinguishes a ceiling on the selling fare from one on the net fare", () => {
+    // 20% of selling and 25% of net are the same ceiling; read one as the
+    // other and every ticket looks wrong.
+    const onSelling = RULES.map((r) =>
+      r.layer === "carrier_to_host"
+        ? { ...r, markupAllowance: { maxPercent: "20.00", basis: "selling" as const } }
+        : r,
+    );
+    const t = netFare("1000.00", "1250.00");
+    const a = calculate({ ticket: t, rules: onSelling, subAgentId: "subagent" });
+    expect(a.markupPercent).toBe("20.0000");
+    expect(formatMoney(a.markupHeadroom!)).toBe("0.00");
   });
 });

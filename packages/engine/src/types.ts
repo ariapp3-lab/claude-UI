@@ -385,6 +385,25 @@ export interface Rule {
    */
   readonly exchangeTreatment?: "net_of_original" | "added_collection_only" | "full_fare";
 
+  /**
+   * How far a net or bulk fare may be marked up.
+   *
+   * On a net fare the airline files a fare it will accept and permits the agent
+   * to sell above it up to a ceiling. The markup is therefore the agent's
+   * commission on that ticket, self-determined inside a limit the airline set —
+   * which makes the ceiling a number worth holding: exceeding it invites a
+   * debit memo, and sitting under it is revenue the agent was entitled to and
+   * did not take.
+   *
+   * `basis` matters and contracts state it both ways. A 20% ceiling on the
+   * SELLING fare and a 25% ceiling on the NET fare are the same ceiling; read
+   * one as the other and every ticket looks wrong.
+   */
+  readonly markupAllowance?: {
+    readonly maxPercent: string;
+    readonly basis: "net" | "selling";
+  };
+
   readonly match: RuleMatch;
   readonly award: Award;
   readonly source?: RuleSource;
@@ -505,6 +524,21 @@ export interface Waterfall {
    * commission is zero and the cheque is not.
    */
   readonly payable: Money;
+
+  /**
+   * The markup actually taken, as a percentage of whichever basis the contract
+   * states. Null on a published fare, or where no allowance is configured.
+   */
+  readonly markupPercent?: string | null;
+
+  /**
+   * Markup the contract still permitted and the agent did not take.
+   *
+   * Positive is money left behind; negative means the ceiling was exceeded,
+   * which is a debit-memo exposure rather than extra income. Null where no
+   * allowance is configured — an unknown ceiling is not a ceiling of zero.
+   */
+  readonly markupHeadroom?: Money | null;
 
   /** Anything a human must look at before this figure is trusted. */
   readonly flags: readonly {

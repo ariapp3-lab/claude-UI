@@ -109,6 +109,21 @@ export interface PricedDocument {
   readonly markup: string;
 
   /**
+   * The markup taken, as a percentage of the basis the contract names. Null on
+   * a published fare, or where the contract's ceiling is not configured.
+   */
+  readonly markupPercent: string | null;
+
+  /**
+   * Markup the contract still permitted and was not taken. Positive is money
+   * left behind; negative means the ceiling was exceeded, which is a
+   * debit-memo exposure rather than extra income.
+   *
+   * Null where no ceiling is configured — an unknown ceiling is not zero.
+   */
+  readonly markupHeadroom: string | null;
+
+  /**
    * The whole ticket from the sub-agent's side: markup, plus commission, less
    * every fee.
    *
@@ -279,6 +294,8 @@ export function priceAirFile(airText: string, opts: PriceOptions): PriceResult {
       })),
       netToSubAgent: w && subAgentId ? formatMoney(w.netToSubAgent) : null,
       markup: w ? formatMoney(w.markup) : formatMoney(p.markup),
+      markupPercent: w?.markupPercent ?? null,
+      markupHeadroom: w?.markupHeadroom ? formatMoney(w.markupHeadroom) : null,
       totalToSubAgent: w && subAgentId ? formatMoney(w.payable) : null,
 
       prefill:

@@ -89,7 +89,8 @@ export default function ContractPage() {
           issuedFrom: `${new Date().getUTCFullYear()}-01-01`,
           issuedTo: `${new Date().getUTCFullYear()}-12-31`,
           rates: {}, includeYq: false, requiredTourCode: '', originIn: [],
-          scope: 'ticket', excludeFareTypes: ['group', 'private'], notes: '', files: [],
+          scope: 'ticket', maxMarkupPercent: '', markupBasis: 'net',
+          excludeFareTypes: ['group', 'private'], notes: '', files: [],
         }],
       }),
     }, 'Contract added');

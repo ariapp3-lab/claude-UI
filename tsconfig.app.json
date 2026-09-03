@@ -29,6 +29,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "packages/engine/src", "packages/engine/contracts", "packages/parsers/src", "packages/cli/src", "packages/sdk/src"],
+  "include": ["src", "packages/engine/src", "packages/engine/contracts", "packages/parsers/src", "packages/cli/src", "packages/sdk/src", "packages/engine/test", "packages/parsers/test", "packages/cli/test", "packages/sdk/test"],
   "exclude": ["packages/cli/src/main.ts", "packages/sdk/src/server.ts"]
 }

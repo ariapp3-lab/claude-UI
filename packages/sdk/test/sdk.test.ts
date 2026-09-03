@@ -293,3 +293,47 @@ describe("a marked-up net fare", () => {
     expect(published.markup).toBe("0.00");
   });
 });
+
+describe("the markup ceiling", () => {
+  /**
+   * On a net fare the airline files a fare it will accept and lets the agent
+   * sell above it up to a ceiling, so the markup IS the commission on that
+   * ticket — self-set, inside a limit somebody else drew.
+   *
+   * That makes both directions of error cost money. Over the ceiling invites a
+   * debit memo. Under it is revenue the agent was entitled to and did not take,
+   * which no statement will ever show as missing, because nobody was short-paid.
+   */
+  const config = seedConfig();
+  const priced = (name: string) =>
+    priceAirFile(read(name), { config, view: "subagent" }).documents[0]!;
+
+  it("reports the markup as a percentage of the contract's basis", () => {
+    // Both marked-up records sit at exactly 25% of the net fare.
+    expect(priced("amadeus-air-ly-markup.air").markupPercent).toBe("25.0000");
+    expect(priced("amadeus-air-ly-bt.air").markupPercent).toBe("25.0000");
+  });
+
+  it("reads a markup filed exactly at the ceiling as exactly the ceiling", () => {
+    // Computed in integers precisely so this cannot come back 24.9999.
+    const doc = priced("amadeus-air-ly-markup.air");
+    expect(doc.markupPercent).toBe("25.0000");
+    expect(doc.markupHeadroom).toBe("0.00");
+  });
+
+  it("raises no flag on a ticket inside the ceiling", () => {
+    const doc = priced("amadeus-air-ly-markup.air");
+    expect(doc.flags.filter((f) => /markup/.test(f.message))).toEqual([]);
+  });
+
+  it("reports nothing on a published fare, which has no markup to cap", () => {
+    const doc = priced("amadeus-air-ly-commission.air");
+    expect(doc.markup).toBe("0.00");
+    expect(doc.markupPercent).toBeNull();
+  });
+
+  it("round-trips through JSON", () => {
+    const doc = priced("amadeus-air-ly-markup.air");
+    expect(JSON.parse(JSON.stringify(doc))).toEqual(doc);
+  });
+});

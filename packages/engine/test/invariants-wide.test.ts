@@ -40,7 +40,7 @@ const pick = <T,>(r: () => number, xs: readonly T[]): T =>
 /** Every class in Attachment A, plus classes the table does not list. */
 const RBDS = [...Object.keys(ATTACHMENT_A), "X", "T", "E", "R"] as const;
 const DOC_TYPES = ["TKT", "EXCH", "RFND", "VOID", "EMD"] as const;
-const FARE_TYPES = ["published", "bulk", "net"] as const;
+const FARE_TYPES = ["published", "net", "private", "group"] as const;
 const CURRENCIES = ["USD", "EUR", "ILS"] as const;
 /** Origins inside and outside the contract's US/CA origination rule. */
 const ORIGINS = ["JFK", "EWR", "LAX", "YYZ", "TLV", "ZRH", "LHR", "CDG"] as const;
@@ -62,7 +62,7 @@ function makeCoupons(r: () => number, currency: string): Coupon[] {
       rbd: pick(r, RBDS),
       fareBasis: "GEN",
       departureDate: "2026-03-14",
-      status: pick(r, ["OK", "RQ"] as const),
+      status: pick(r, ["OK", "RQ"] as const) as Coupon["status"],
     });
     from = to;
   }
