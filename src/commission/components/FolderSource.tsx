@@ -16,7 +16,7 @@ import {
 export function FolderSource({ count }: { count: number }) {
   const batch = useBatch();
   const [scan, setScan] = useState<FolderScan | null>(null);
-  const [reading, setReading] = useState<{ done: number; total: number } | null>(null);
+  const [reading, setReading] = useState<{ done: number; total: number; current?: string } | null>(null);
   const [remembered, setRemembered] = useState(false);
   const canConnect = supportsFolderConnection();
 
@@ -44,7 +44,8 @@ export function FolderSource({ count }: { count: number }) {
     }
   }
 
-  const progress = (done: number, total: number) => setReading({ done, total });
+  const progress = (done: number, total: number, current?: string) =>
+    setReading({ done, total, current });
 
   return (
     <div className="card p-4 space-y-3">
@@ -87,6 +88,9 @@ export function FolderSource({ count }: { count: number }) {
             {busy.total
               ? `${phase} ${busy.done.toLocaleString()} of ${busy.total.toLocaleString()} files`
               : 'opening the folder…'}
+            {reading?.current && (
+              <span className="text-slate-400"> · {reading.current}</span>
+            )}
           </p>
         </div>
       )}
@@ -103,6 +107,12 @@ export function FolderSource({ count }: { count: number }) {
             {' · '}{scan.unreadable.length} could not be read
           </span>}
         </p>
+      )}
+
+      {scan && !busy && scan.unreadable.length > 0 && (
+        <ul className="text-[11.5px] text-amber-700 font-mono space-y-0.5 max-h-24 overflow-y-auto">
+          {scan.unreadable.slice(0, 20).map((u, i) => <li key={i}>{u}</li>)}
+        </ul>
       )}
 
       {/* The Windows picker lists folders only, so a folder of loose files looks

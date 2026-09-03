@@ -26,7 +26,7 @@ export interface FolderScan {
   readonly unreadable: string[];
 }
 
-export type Progress = (done: number, total: number) => void;
+export type Progress = (done: number, total: number, current?: string) => void;
 
 /** A real handle, kept across visits — the difference between picking and connecting. */
 export function supportsFolderConnection(): boolean {
@@ -45,6 +45,20 @@ export function looksLikeAir(text: string): boolean {
 
 const SIZE_LIMIT = 512 * 1024;   // an AIR record is kilobytes; anything larger is not one
 
+/**
+ * How many files to have in flight at once.
+ *
+ * Was a hundred. A browser reading a hundred files concurrently off a local
+ * disk — and especially off a page opened from disk rather than served — is a
+ * lot of simultaneous I/O for no gain: the work is bounded by the disk, not by
+ * how many requests are outstanding. Eight keeps it moving without a burst
+ * large enough to stall the tab.
+ */
+const CONCURRENCY = 8;
+
+/** Yield to the browser this often, so the page never stops painting. */
+const YIELD_EVERY = 25;
+
 async function readEntries(
   entries: { name: string; read: () => Promise<string> }[],
   onProgress?: Progress,
@@ -52,22 +66,26 @@ async function readEntries(
   const files: LoadedFile[] = [];
   const unreadable: string[] = [];
   let skipped = 0;
+  let done = 0;
 
-  // Chunked so the page keeps painting while a few thousand files are read.
-  const CHUNK = 100;
-  for (let i = 0; i < entries.length; i += CHUNK) {
-    const slice = entries.slice(i, i + CHUNK);
+  for (let i = 0; i < entries.length; i += CONCURRENCY) {
+    const slice = entries.slice(i, i + CONCURRENCY);
     await Promise.all(slice.map(async (e) => {
       try {
         const text = await e.read();
         if (looksLikeAir(text)) files.push({ name: e.name, text, bundled: false });
         else skipped++;
-      } catch {
-        unreadable.push(e.name);
+      } catch (err) {
+        // One unreadable file must never end the run — it is reported by name,
+        // which is also what identifies the file if a run stops on it.
+        unreadable.push(`${e.name}: ${(err as Error).message || 'could not be read'}`);
       }
+      done++;
     }));
-    onProgress?.(Math.min(i + CHUNK, entries.length), entries.length);
-    await new Promise((r) => setTimeout(r, 0));
+
+    // The name of the file in hand, so a run that stops says where it stopped.
+    onProgress?.(done, entries.length, slice[slice.length - 1]?.name);
+    if (i % YIELD_EVERY === 0) await new Promise((r) => setTimeout(r, 0));
   }
 
   files.sort((a, b) => a.name.localeCompare(b.name));
