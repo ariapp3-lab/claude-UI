@@ -6,6 +6,8 @@ import DashboardPage from './pages/DashboardPage';
 import ReconciliationPage from './commission/pages/ReconciliationPage';
 import CheckTicketPage from './commission/pages/CheckTicketPage';
 import ContractPage from './commission/pages/ContractPage';
+import StatementPage from './commission/pages/StatementPage';
+import { WorkspaceProvider } from './commission/workspace';
 
 type Page = string;
 
@@ -16,6 +18,7 @@ export default function App() {
     switch (activePage) {
       case 'Reconciliation':  return <ReconciliationPage />;
       case 'Check a ticket':  return <CheckTicketPage />;
+      case 'Statements':      return <StatementPage />;
       case 'Contract':        return <ContractPage />;
       case 'Data Pump':       return <DataPumpPage />;
       case 'Dashboard':       return <DashboardPage />;
@@ -37,7 +40,7 @@ export default function App() {
       <Sidebar activePage={activePage} onNavigate={setActivePage} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header onNewOrder={() => setActivePage('Orders')} />
-        {renderPage()}
+        <WorkspaceProvider>{renderPage()}</WorkspaceProvider>
       </div>
     </div>
   );

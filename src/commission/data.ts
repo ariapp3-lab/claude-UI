@@ -15,9 +15,14 @@ import { LY_MAINST_2026, ATTACHMENT_A, OPEN_QUESTIONS } from '../../packages/eng
 import {
   AAPPEL_2026, HOST_RETAINS_POINTS, SUB_AGENT_ID, rateCard,
 } from '../../packages/engine/contracts/subagent-aappel-2026';
+import {
+  CONSOLIDATORS, consolidatorForIata, type Consolidator,
+} from '../../packages/engine/contracts/consolidators';
 
 export { ATTACHMENT_A, OPEN_QUESTIONS, LY_MAINST_2026 };
 export { AAPPEL_2026, HOST_RETAINS_POINTS, SUB_AGENT_ID, rateCard };
+export { CONSOLIDATORS, consolidatorForIata };
+export type { Consolidator };
 
 /** Carrier contract plus the sub-agent agreement, which is what an agent sees. */
 export const SUB_AGENT_RULES: Rule[] = [
@@ -117,4 +122,39 @@ export function isNeg(m: Money | null | undefined): boolean {
 export function routeOf(ticket: TicketDocument): string {
   if (ticket.coupons.length === 0) return '?';
   return `${ticket.coupons[0].origin}\u2013${journeyDestination(ticket.coupons, DEFAULT_GEO)}`;
+}
+
+export interface DetectedConsolidator {
+  /** The IATA number the tickets were issued under. */
+  readonly iata: string;
+  /** The consolidator that number belongs to, where we hold their contracts. */
+  readonly consolidator: Consolidator | null;
+  readonly tickets: number;
+}
+
+/**
+ * Which consolidator a batch belongs to, read off the tickets.
+ *
+ * Every document carries the IATA number it was issued under, so there is
+ * nothing to choose: a batch identifies its own consolidator, and a mixed batch
+ * identifies several. A number we hold no contracts for is reported as itself
+ * rather than folded into whichever consolidator happens to be selected —
+ * pricing a ticket against the wrong agency's contract is worse than not
+ * pricing it.
+ */
+export function detectConsolidators(
+  passengers: readonly { ticket: { iataNumber?: string } }[],
+): DetectedConsolidator[] {
+  const counts = new Map<string, number>();
+  for (const p of passengers) {
+    const iata = p.ticket.iataNumber ?? 'unknown';
+    counts.set(iata, (counts.get(iata) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([iata, tickets]) => ({
+      iata,
+      consolidator: iata === 'unknown' ? null : (consolidatorForIata(iata) ?? null),
+      tickets,
+    }))
+    .sort((a, b) => b.tickets - a.tickets);
 }

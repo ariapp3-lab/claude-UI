@@ -3,5 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "dependencies": { "@commission/engine": "*", "@commission/parsers": "*" }
+  "dependencies": {
+    "@commission/engine": "*",
+    "@commission/parsers": "*"
+  }
 }

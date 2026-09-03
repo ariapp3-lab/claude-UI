@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Briefcase, Users, UserCheck, Inbox, CheckSquare,
-  Zap, Ticket, Calculator, ShieldCheck, Settings, LogOut, Scale, FileSearch,
+  Zap, Ticket, Calculator, ShieldCheck, Settings, LogOut, Scale, FileSearch, Receipt,
   ChevronDown, Plane,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -59,6 +59,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       items: [
         { icon: <Calculator size={16} />,  label: 'Reconciliation' },
         { icon: <FileSearch size={16} />,  label: 'Check a ticket' },
+        { icon: <Receipt size={16} />,     label: 'Statements' },
         { icon: <Scale size={16} />,       label: 'Contract' },
       ],
     },

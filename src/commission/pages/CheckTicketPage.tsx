@@ -4,9 +4,10 @@ import { calculate } from '@commission/engine';
 import { Amount, Note, Panel, Pill, StatCard } from '../components/primitives';
 import { TraceView, WaterfallView } from '../components/Waterfall';
 import {
-  BUNDLED_FILES, HOST_RETAINS_POINTS, SUB_AGENT_ID, SUB_AGENT_RULES,
+  BUNDLED_FILES, HOST_RETAINS_POINTS, detectConsolidators,
   money, priceFiles, rateCard, routeOf, type LoadedFile,
 } from '../data';
+import { useWorkspace, WorkspaceBar } from '../workspace';
 
 /**
  * The sub-agent's own view.
@@ -17,18 +18,20 @@ import {
  * does not know about does not reduce what is shown.
  */
 export default function CheckTicketPage() {
+  const { consolidator, rules, subAgentId } = useWorkspace();
   const [files, setFiles] = useState<LoadedFile[]>(BUNDLED_FILES);
   const [selected, setSelected] = useState(0);
 
   const batch = useMemo(() => priceFiles(files), [files]);
+  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch]);
   const tickets = batch.passengers;
 
   const priced = useMemo(
     () => tickets.map((p) => ({
       p,
-      w: calculate({ ticket: p.ticket, rules: SUB_AGENT_RULES, subAgentId: SUB_AGENT_ID }),
+      w: calculate({ ticket: p.ticket, rules, subAgentId: subAgentId ?? undefined }),
     })),
-    [tickets],
+    [tickets, rules, subAgentId],
   );
 
   const active = priced[Math.min(selected, priced.length - 1)];
@@ -62,14 +65,22 @@ export default function CheckTicketPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-5">
+      <WorkspaceBar detected={detected} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[21px] font-semibold tracking-tight text-slate-900">My commission</h1>
+          <h1 className="text-[21px] font-semibold tracking-tight text-slate-900">
+            {subAgentId ? 'My commission' : `${consolidator.name} — carrier commission`}
+          </h1>
           <p className="text-[13.5px] text-slate-600 mt-1 max-w-[64ch]">
-            Every EL AL document is issued on the consolidator's plate and priced by
-            the consolidator's contract. The consolidator retains{' '}
-            <b className="font-semibold">{HOST_RETAINS_POINTS} point</b> of the fare;
-            what is below is the remainder.
+            {subAgentId ? <>
+              Every EL AL document is issued on {consolidator.name}'s plate and priced
+              by their contract. They retain{' '}
+              <b className="font-semibold">{HOST_RETAINS_POINTS} point</b> of the fare;
+              what is below is the remainder.
+            </> : <>
+              What each document earns {consolidator.name} from the carrier, before
+              anything is passed down to a sub-agent.
+            </>}
           </p>
         </div>
         <label className="btn-secondary cursor-pointer">

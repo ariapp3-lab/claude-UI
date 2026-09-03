@@ -5,18 +5,23 @@ import type { Finding } from '@commission/cli';
 import { toCsv } from '../../../packages/cli/src/report';
 import { Amount, Note, Panel, Pill, StatCard, type Tone } from '../components/primitives';
 import { TraceView, WaterfallView } from '../components/Waterfall';
-import { BUNDLED_FILES, money, priceFiles, type LoadedFile } from '../data';
+import {
+  BUNDLED_FILES, detectConsolidators, money, priceFiles, type LoadedFile,
+} from '../data';
+import { useWorkspace, WorkspaceBar } from '../workspace';
 
 const TONE_OF: Record<string, Tone> = {
   critical: 'critical', warning: 'warning', ok: 'ok',
 };
 
 export default function ReconciliationPage() {
+  const { consolidator } = useWorkspace();
   const [files, setFiles] = useState<LoadedFile[]>(BUNDLED_FILES);
   const [open, setOpen] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(true);
 
   const batch = useMemo(() => priceFiles(files), [files]);
+  const detected = useMemo(() => detectConsolidators(batch.passengers), [batch]);
   const { result } = batch;
   const t = result.totals;
 
@@ -44,12 +49,13 @@ export default function ReconciliationPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-5">
+      <WorkspaceBar detected={detected} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[21px] font-semibold tracking-tight text-slate-900">Reconciliation</h1>
           <p className="text-[13.5px] text-slate-600 mt-1 max-w-[62ch]">
-            {batch.fileCount} file{batch.fileCount === 1 ? '' : 's'} priced against the
-            EL AL Agency Commission Letter 2026. Every figure is computed here from the
+            {batch.fileCount} file{batch.fileCount === 1 ? '' : 's'} priced against{' '}
+            {consolidator.name}'s carrier contracts. Every figure is computed here from the
             documents themselves — nothing is stored and nothing is estimated.
           </p>
         </div>
