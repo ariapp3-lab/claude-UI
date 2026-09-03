@@ -5,8 +5,22 @@ import { Note, Panel, Pill } from '../components/primitives';
 import { useWorkspace } from '../workspace';
 import {
   type CarrierContract, type Config, type StoredConsolidator,
-  deleteContractFile, getContractFile, newId, putContractFile, resetConfig,
+  DEFAULT_TENANT, deleteContractFile, getContractFile, newId, putContractFile, resetConfig,
 } from '../store';
+
+/**
+ * Booking classes as a commission letter writes them: "K/V/S/L/H/N", "C J Q",
+ * "W,Y,M". Accepts any of those separators so the band can be pasted straight
+ * out of the letter instead of retyped one class at a time.
+ */
+function parseClasses(input: string): string[] {
+  // Letters only. A band pasted from a letter carries its rate with it
+   // ("I/D/Z 9%"), and a digit filtered in as a class would silently add a
+   // booking class called "9" that no ticket can ever match.
+  return [...new Set(
+    input.toUpperCase().split(/[^A-Z]+/).filter((c) => c.length === 1),
+  )];
+}
 import { OPEN_QUESTIONS } from '../data';
 
 /**
@@ -52,8 +66,8 @@ export default function ContractPage() {
     commit({
       ...config,
       consolidators: [...config.consolidators, {
-        id, name: 'New consolidator', iata: '', retainsPoints: '1.00',
-        contracts: [], notes: '',
+        id, name: 'New consolidator', tenantId: DEFAULT_TENANT, iata: '',
+        retainsPoints: '1.00', contracts: [], notes: '',
       }],
     }, 'Consolidator added');
     setConsolidator(id);
@@ -280,18 +294,25 @@ function ContractEditor({
         </div>
 
         <div className="flex items-center gap-2 mt-3">
-          <input value={newClass} onChange={(e) => setNewClass(e.target.value.toUpperCase().slice(0, 2))}
-                 placeholder="Class" aria-label="New booking class"
-                 className="w-20 px-2 py-1.5 text-[13px] font-mono bg-white border border-surface-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          <input value={newClass}
+                 onChange={(e) => setNewClass(e.target.value.toUpperCase())}
+                 placeholder="K V S L H N"
+                 aria-label="Booking classes, separated by spaces or commas"
+                 className="w-44 px-2 py-1.5 text-[13px] font-mono bg-white border border-surface-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500" />
           <input value={newRate} onChange={(e) => setNewRate(e.target.value.replace(/[^\d.]/g, ''))}
-                 placeholder="0.00" aria-label="Rate for the new class"
+                 placeholder="0.00" aria-label="Rate for these classes"
                  className="w-24 px-2 py-1.5 text-[13px] font-mono text-right bg-white border border-surface-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500" />
-          <button className="btn-secondary" disabled={!newClass || !newRate}
+          <button className="btn-secondary" disabled={parseClasses(newClass).length === 0 || !newRate}
                   onClick={() => {
-                    onPatch({ rates: { ...contract.rates, [newClass]: Number(newRate).toFixed(2) } });
+                    // A commission letter files a whole band at one rate, so
+                    // the form takes a band. Typing K,V,S,L,H,N once beats six
+                    // trips through the same control.
+                    const rate = Number(newRate).toFixed(2);
+                    const added = Object.fromEntries(parseClasses(newClass).map((c) => [c, rate]));
+                    onPatch({ rates: { ...contract.rates, ...added } });
                     setNewClass(''); setNewRate('');
                   }}>
-            <Plus size={14} /> Add class
+            <Plus size={14} /> Add {parseClasses(newClass).length || ''} class{parseClasses(newClass).length === 1 ? '' : 'es'}
           </button>
         </div>
       </div>

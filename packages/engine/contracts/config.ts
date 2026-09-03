@@ -56,9 +56,30 @@ export interface CarrierContract {
   readonly files: readonly ContractFile[];
 }
 
+/**
+ * One IATA office and the contracts held under it.
+ *
+ * The IATA number, not the agency, is the unit that owns contracts. A single
+ * host commonly holds several: the MST agreement's own footnote points at
+ * "PNRs created under one of MST's affiliate offices in order to access higher
+ * contracted commission levels" — same host, same airline, different number,
+ * better rates. Modelling the agency as the owner would make those three
+ * contracts fight over one row; modelling the number as the owner makes them
+ * three rows that never collide, which is also how a ticket resolves.
+ *
+ * `agency` is the label that groups them back together for a human.
+ */
 export interface StoredConsolidator {
   readonly id: string;
   readonly name: string;
+  /**
+   * Which tenant holds this office. Resolution is always scoped by it: two
+   * tenants may legitimately hold different contracts for the same IATA, and
+   * neither may ever see the other's.
+   */
+  readonly tenantId: string;
+  /** The agency these offices belong to, for grouping. e.g. "Main St Travel". */
+  readonly agency?: string;
   /** The ARC/IATA number tickets are issued under — how a batch is matched. */
   readonly iata: string;
   /** Points of the fare the consolidator retains; the sub-agent takes the rest. */
@@ -82,6 +103,9 @@ export interface Config {
   readonly consolidators: readonly StoredConsolidator[];
 }
 
+/** The tenant a single-agency install runs as, until the CRM supplies one. */
+export const DEFAULT_TENANT = 'default';
+
 // ---------------------------------------------------------------------------
 // Seed
 // ---------------------------------------------------------------------------
@@ -97,6 +121,8 @@ export function seedConfig(): Config {
     consolidators: [{
       id: 'mst',
       name: 'Main St Travel',
+      tenantId: DEFAULT_TENANT,
+      agency: 'Main St Travel',
       iata: '33535983',
       retainsPoints: '1.00',
       feeSchedule: 'mst-2026',
@@ -278,3 +304,104 @@ export function carrierRulesFor(c: StoredConsolidator): Rule[] {
 /** A short, collision-resistant id for a consolidator, contract or file. */
 export const newId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+
+// ---------------------------------------------------------------------------
+// Resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Why a ticket found no contract. Each is a different thing to do about it, so
+ * they are never collapsed into one "not found".
+ */
+export type ResolutionMiss =
+  | 'no_iata'          // the document carries no IATA number to match on
+  | 'unknown_iata'     // an IATA this tenant holds no office for
+  | 'no_carrier'       // the office holds no contract for this airline
+  | 'outside_window';  // a contract exists but not for this ticketing date
+
+export interface Resolution {
+  readonly office: StoredConsolidator | null;
+  readonly contracts: readonly CarrierContract[];
+  readonly miss: ResolutionMiss | null;
+  /** Plain English, for the queue a human works through. */
+  readonly reason: string;
+}
+
+/**
+ * Find the contracts governing one ticket. The single place this decision is
+ * made — the CRM, the app and the CLI all call it, so they cannot drift.
+ *
+ * The chain is tenant, then IATA, then carrier, then the ticketing date, and it
+ * stops at the first step that fails. Each stop reports which step it was:
+ * an unknown IATA is a contract to go and get, a carrier gap is a contract to
+ * negotiate, and an expired window is a renewal. Reporting all three as
+ * "no contract" would hide which one it is.
+ *
+ * The date tested is the TICKETING date, not travel: commission is earned when
+ * the ticket is sold.
+ */
+export function resolveContracts(
+  config: Config,
+  q: {
+    readonly tenantId: string;
+    readonly iata: string | null | undefined;
+    readonly carrier: string;
+    readonly issueDate: string;
+  },
+): Resolution {
+  const none = (miss: ResolutionMiss, reason: string): Resolution =>
+    ({ office: null, contracts: [], miss, reason });
+
+  if (!q.iata) {
+    return none('no_iata', 'this document carries no IATA number, so no contract could be selected');
+  }
+
+  // Scoped by tenant first, always. Two tenants may hold the same IATA with
+  // different terms, and one must never price with the other's contract.
+  const office = config.consolidators.find(
+    (c) => c.tenantId === q.tenantId && c.iata === q.iata,
+  );
+  if (!office) {
+    return none('unknown_iata', `no office is configured for IATA ${q.iata}`);
+  }
+
+  const carrier = q.carrier.toUpperCase();
+  const forCarrier = office.contracts.filter((k) => k.carrier.toUpperCase() === carrier);
+  if (forCarrier.length === 0) {
+    return {
+      office,
+      contracts: [],
+      miss: 'no_carrier',
+      reason: `${office.name} (IATA ${q.iata}) holds no ${carrier} contract`,
+    };
+  }
+
+  const inWindow = forCarrier.filter(
+    (k) =>
+      (!k.issuedFrom || q.issueDate >= k.issuedFrom) &&
+      (!k.issuedTo || q.issueDate <= k.issuedTo),
+  );
+  if (inWindow.length === 0) {
+    const windows = forCarrier.map((k) => `${k.issuedFrom || '−∞'}…${k.issuedTo || '+∞'}`).join(', ');
+    return {
+      office,
+      contracts: [],
+      miss: 'outside_window',
+      reason:
+        `${office.name} holds a ${carrier} contract, but none covering a ticket issued ` +
+        `${q.issueDate} (${windows})`,
+    };
+  }
+
+  return {
+    office,
+    contracts: inWindow,
+    miss: null,
+    reason: `${office.name} (IATA ${q.iata}) · ${inWindow.map((k) => k.title).join(', ')}`,
+  };
+}
+
+/** Every office a tenant holds, newest-looking first for a picker. */
+export function officesFor(config: Config, tenantId: string): readonly StoredConsolidator[] {
+  return config.consolidators.filter((c) => c.tenantId === tenantId);
+}

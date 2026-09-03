@@ -22,13 +22,17 @@ import {
   type LayerResult, type Rule, type TicketDocument, type Waterfall,
 } from "@commission/engine";
 import {
-  type Config, carrierRulesFor, compileSubAgentRules, seedConfig,
+  type Config, DEFAULT_TENANT, carrierRulesFor, compileSubAgentRules, seedConfig,
 } from "../../engine/contracts/config.js";
 import { parseAmadeusAir, parseStatementCsv } from "@commission/parsers";
 import { settle, type SettlementRow } from "../../cli/src/statement.js";
 
 export type { Config };
-export { seedConfig };
+export { seedConfig, DEFAULT_TENANT };
+export {
+  discoverFromFiles, discoverFromPassengers, proposedRates, describeDiscovery,
+  type DiscoveredContract, type ObservedClass,
+} from "./discover.js";
 
 /** Outcomes a caller may write into a commission field without asking anyone. */
 const TRUSTWORTHY = new Set(["CALCULATED", "NIL"]);
@@ -130,6 +134,12 @@ export interface PriceResult {
 
 export interface PriceOptions {
   readonly config: Config;
+  /**
+   * Which tenant is asking. Contract lookup is scoped by it, always: two
+   * tenants may hold different contracts for the same IATA number, and neither
+   * may ever price with the other's. Defaults to the single-agency tenant.
+   */
+  readonly tenantId?: string;
   /** Price as the sub-agent (default) or as the consolidator. */
   readonly view?: "subagent" | "host";
   /** Identifies the sub-agent in the rules; any stable string will do. */
@@ -156,8 +166,12 @@ function rulesFor(opts: PriceOptions, iata: string | null): {
   rules: Rule[];
   consolidator: { id: string; name: string; iata: string } | null;
 } {
+  // Scoped by tenant, then IATA. The office is the owner of contracts, not the
+  // agency: one host commonly holds several numbers with different terms on the
+  // same airline, and each resolves to its own row.
+  const tenantId = opts.tenantId ?? DEFAULT_TENANT;
   const found = iata
-    ? opts.config.consolidators.find((c) => c.iata === iata)
+    ? opts.config.consolidators.find((c) => c.tenantId === tenantId && c.iata === iata)
     : undefined;
   if (!found) return { rules: [], consolidator: null };
 

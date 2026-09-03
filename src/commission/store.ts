@@ -9,11 +9,15 @@
 
 import {
   type CarrierContract, type Config, type ContractFile, type StoredConsolidator,
-  carrierRulesFor, compileContract, compileSubAgentRules, newId, seedConfig,
+  DEFAULT_TENANT, carrierRulesFor, compileContract, compileSubAgentRules, newId,
+  officesFor, resolveContracts, seedConfig,
 } from '../../packages/engine/contracts/config';
 
 export type { CarrierContract, Config, ContractFile, StoredConsolidator };
-export { carrierRulesFor, compileContract, compileSubAgentRules, newId, seedConfig };
+export {
+  DEFAULT_TENANT, carrierRulesFor, compileContract, compileSubAgentRules, newId,
+  officesFor, resolveContracts, seedConfig,
+};
 
 const KEY = 'commission-desk.config.v1';
 
@@ -27,12 +31,31 @@ export function loadConfig(): Config {
     if (!raw) return seedConfig();
     const parsed = JSON.parse(raw) as Config;
     if (parsed?.version !== 1 || !Array.isArray(parsed.consolidators)) return seedConfig();
-    return parsed;
+    return migrate(parsed);
   } catch {
     // Private browsing, cleared storage, a half-written value — the seed is a
     // working configuration, so falling back to it always leaves a usable app.
     return seedConfig();
   }
+}
+
+/**
+ * Bring a stored configuration up to the current shape.
+ *
+ * Contract lookup is scoped by tenant, and a configuration saved before that
+ * existed carries no tenant at all — which would resolve to nothing and read,
+ * from the outside, exactly like an agency whose contracts had vanished. So an
+ * office with no tenant is adopted by the single-agency default rather than
+ * left unreachable.
+ */
+function migrate(config: Config): Config {
+  const needsTenant = config.consolidators.some((c) => !c.tenantId);
+  if (!needsTenant) return config;
+  return {
+    ...config,
+    consolidators: config.consolidators.map((c) =>
+      c.tenantId ? c : { ...c, tenantId: DEFAULT_TENANT }),
+  };
 }
 
 export function saveConfig(config: Config): boolean {
