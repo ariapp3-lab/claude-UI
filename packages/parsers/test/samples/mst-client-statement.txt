@@ -1,0 +1,351 @@
+                                                       MAIN ST. TRAVEL CENTER
+                                                   1 SAMPLE STREET               
+                                                          MONSEY NY 10952
+                                                   ACCOUNTS@EXAMPLE.COM     
+                                        555 000 0000 555 000 0000-FAX TOLL FREE 555 000 0000
+
+                                                                Client Statement
+Sample Agency 
+1 Sample Street                                                                                                     To: 8/16/2026
+Monsey NY 10952
+Phone: +1 (555) 000-0000                                                                                  Client ID: 5550000000
+E-Mail: sample@example.com                                                                                      Client No: 49345
+
+
+
+
+Issue Dt               Invoice No
+    Ticket No          Passenger        Vendor               Start Dt             Itinerary       Fare Remarks
+7/27/2026              10107449
+                       ALPHA/ONE        MST                  7/27/2026            TLVJFKEWRTL    -93.12
+7/27/2026              10107524
+                       BRAVO/TWO      MST                    7/28/2026            TLVEWRJFKTL    25.00
+7/27/2026              10107525
+                       CHARLIE/THREE   MST                   7/28/2026            TLVEWRJFKTL    25.00
+7/27/2026              10107545
+                       DELTA/FOUR    MST                     7/27/2026            JFKTLV         25.00
+7/27/2026              10107759
+                       ECHO/FIVE    MST                      7/29/2026            TLVJFKTLV      -37.36
+7/28/2026              10107830
+                       FOXTROT/SIX   MST                     7/31/2026            TLVKRK         10.00
+7/28/2026              10107833
+                       FOXTROT/SIX   MST                     8/6/2026             VIETLV         10.00
+7/28/2026              10107855
+                       GOLF/SEVEN   MST                      7/29/2026            TLVEWRJFKTL    10.00
+7/28/2026              10108001
+    7503091966         HOTEL/EIGHT     El Al Israel Airli    8/4/2026             JFKTLV          0.00
+7/28/2026              10108047
+                       INDIA/NINE    MST                     7/29/2026            CMHLGA         20.00
+7/28/2026              10108057
+    8991926154         INDIA/NINE    Delta Air Lines         7/31/2026            JFKCMH          0.00
+7/29/2026              10106904
+                       INDIA/NINE    MST                     7/28/2026            CMHLGA         25.00
+7/29/2026              10108193
+                       JULIET/TEN     MST                    8/10/2026            EWRTLVJFK      20.00
+7/29/2026              10108260
+                       KILO/ELEVEN      MST                  8/16/2026            TLVJFK         10.00
+7/29/2026              10108271
+    7503092192         LIMA/TWELVE      El Al Israel Airli   8/7/2026             TLVJFK          0.00
+7/29/2026              10108272
+    7503092193         MIKE/THIRTEEN   El Al Israel Airli    8/2/2026             TLVJFK          0.00
+7/29/2026              10108273
+    7503092194         NOVEM/FOURTEE    El Al Israel Airli   8/2/2026             TLVJFK          0.00
+7/29/2026              10108274
+                       OSCAR/FIFTE      MST                  8/4/2026             TLVEWR         -20.55
+                       OSCAR/FIFTE      MST                  8/4/2026             TLVEWR          25.00
+                                                                                                  4.45
+7/29/2026              10108339
+                       PAPA/SIXT       MST                   8/2/2026             EWRYYZYYCE    -124.74
+7/29/2026              10108353
+                       QUEBEC/SEVEN    MST                   7/29/2026            JFKTLV         -94.50
+7/29/2026              10108436
+
+8/20/2026 3:09:48 PM                                         Client Statement: Sample Agency                              Page 1
+Issue Dt               Invoice No
+    Ticket No          Passenger        Vendor   Start Dt             Itinerary       Fare Remarks
+                       ROMEO/EIGHT    MST        8/7/2026             TLVSZG         20.00
+7/29/2026              10108437
+                       SIERRA/NINE  MST          8/7/2026             TLVSZG         40.00
+7/30/2026              10108539
+                       TANGO/TWENTY  MST         8/13/2026            MUCTLV         -10.84
+7/30/2026              10108540
+                       ROMEO/EIGHT    MST        8/13/2026            MUCTLV         -10.84
+7/30/2026              10108541
+                       UNIFORM/ONE    MST        8/13/2026            MUCTLV          -9.88
+7/30/2026              10108542
+                       VICTOR/TWO   MST          8/13/2026            MUCTLV          -9.88
+7/30/2026              10108543
+                       WHISKEY/THREE  MST        8/13/2026            MUCTLV          -9.88
+7/30/2026              10108544
+                       SIERRA/NINE  MST          8/13/2026            MUCTLV          -9.88
+7/31/2026              10108855
+                       XRAY/FOUR        MST      7/31/2026            IBZCDG         20.00
+7/31/2026              10108963
+                       YANKEE/FIVE     MST       8/10/2026            EWRTLVEWR      90.00
+7/31/2026              10108965
+                       ZULU/SIX         MST      8/10/2026            EWRTLVJFK      32.00
+7/31/2026              10108966
+                       ALPHA/ONE26      MST      8/9/2026             EWRTLVEWR      42.00
+7/31/2026              10108978
+                       BRAVO/TWO27    MST        8/10/2026            EWRTLVEWR      75.00
+7/31/2026              10109005
+                       CHARLIE/THREE2 MST        7/31/2026                           -97.28 LPV:EL AL PROTECT
+                                                                                            VCHR
+7/31/2026              10109006
+                       DELTA/FOUR29  MST         7/31/2026                           -97.28 LPV:EL AL PROTECT
+                                                                                            VCHR
+7/31/2026              10109009
+                       ECHO/FIVE30     MST       7/31/2026                           -97.28 LPV:EL AL PROTECT
+                                                                                            VCHR
+7/31/2026              10109012
+                       FOXTROT/SIX31 MST         8/2/2026             EWRTLVEWR     105.00
+8/1/2026               10109064
+                       GOLF/SEVEN32  MST         8/1/2026                            10.00 LPV:EL AL PROTECT
+                                                                                           VCHR
+8/1/2026               10109075
+                       HOTEL/EIGHT33 MST         8/1/2026             EWRTLVJFK     -252.68
+8/1/2026               10109078
+                       INDIA/NINE      MST       8/2/2026             JFKTLVJFK     -397.00
+8/2/2026               10109133
+                       JULIET/TEN35  MST         4/14/2027            JFKTLVJFK     -283.38
+8/2/2026               10109153
+                       KILO/ELEVEN36 MST         8/10/2026            EWRTLVEWR      43.00
+8/2/2026               10109167
+                       LIMA/TWELVE37   MST       8/10/2026            EWRTLVEWR     -953.00
+8/2/2026               10109168
+                       MIKE/THIRTEEN38 MST       8/10/2026            EWRTLVEWR     -953.00
+8/2/2026               10109175
+                       NOVEM/FOURTEEN3 MST       8/9/2026             JFKTLVEWR      20.00
+8/2/2026               10109176
+                       OSCAR/FIFTEEN40 MST       8/9/2026             JFKTLVEWR      56.00
+8/2/2026               10109182
+                       PAPA/SIXTEEN4 MST         8/9/2026             JFKTLVJFK      20.00
+8/2/2026               10109184
+                       QUEBEC/SEVE     MST       8/9/2026             JFKTLVJFK      30.00
+8/3/2026               10109211
+                       ROMEO/EIGHT43 MST         8/3/2026             BUDTLV         -18.62
+8/20/2026 3:09:48 PM                             Client Statement: Sample Agency                            Page 2
+Issue Dt               Invoice No
+    Ticket No          Passenger       Vendor       Start Dt             Itinerary          Fare Remarks
+8/3/2026               10109240
+                       SIERRA/NINE44 MST            8/10/2026            EWRTLV            25.00
+8/3/2026               10109264
+                       DELTA/FOUR    MST            8/4/2026             TLVJFKMIATLV    -158.60
+8/3/2026               10109265
+                       DELTA/FOUR    MST            8/4/2026             LGAMIA            10.00
+8/3/2026               10109268
+                       TANGO/TWENTY D MST           8/4/2026             TLVJFKMIATLV      10.00
+8/3/2026               10109270
+                       TANGO/TWENTY D MST           8/4/2026             LGAMIA            10.00
+8/3/2026               10109278
+                       CHARLIE/THREE   MST          8/11/2026            JFKTLV            25.00
+                       CHARLIE/THREE   MST          8/11/2026            JFKTLV            -8.20
+                                                                                           16.80
+8/3/2026               10109282
+                       BRAVO/TWO      MST           8/11/2026            JFKTLV            -8.30
+                       BRAVO/TWO      MST           8/11/2026            JFKTLV            25.00
+                                                                                           16.70
+8/3/2026       10109290
+               SIERRA/NINE44 MST                    8/14/2026            TLVEWRJFKTL     -116.78
+8/3/2026       10109477
+               UNIFORM/ON      MST                  8/18/2026            TLVJFKEWRTL      -40.02
+8/4/2026       10108260
+               KILO/ELEVEN     MST                  8/16/2026            TLVJFK            25.00
+8/4/2026       10109651
+               VICTOR/TWO47  MST                    8/5/2026             JFKTLVJFK      -1,803.00
+8/4/2026       10109710
+               WHISKEY/THRE MST                     4/15/2027            JFKTLVJFK       -296.76
+8/4/2026       10109714
+               XRAY/FOUR49    MST                   4/15/2027            JFKTLVJFK       -157.38
+8/4/2026       10109732
+               YANKEE/FIVE50  MST                   8/5/2026             MRSTLV           -26.88
+8/4/2026       10109733
+               ZULU/SIX51      MST                  8/4/2026                              -11.90 0B5:CHARGEABLE SEAT
+8/4/2026       10109752
+               ALPHA/ONE52    MST                   8/5/2026                               50.00
+8/4/2026       10109756
+               BRAVO/TWO53     MST                  8/5/2026             MIATLVMIA         30.00
+8/4/2026       10109757
+               CHARLIE/THREE MST                    8/5/2026             MIATLVMIA         30.00
+8/4/2026       10109758
+    7504084596 DELTA/FOUR      El Al Israel Airli   8/10/2026            TLVEWR             0.00
+8/4/2026       10109759
+    7504084597 ECHO/FIVE5      El Al Israel Airli   8/10/2026            TLVEWR             0.00
+8/4/2026       10109760
+    7504084598 FOXTROT/SIX     El Al Israel Airli   8/10/2026            TLVEWR             0.00
+8/4/2026       10109762
+               KILO/ELEVEN     MST                  8/10/2026            TLVEWR           -46.70
+8/4/2026       10109809
+               GOLF/SEVEN58   MST                   8/5/2026             FLLPNS            10.00
+8/5/2026       10109943
+               HOTEL/EIGHT59  MST                   8/10/2026            JFKTLVJFK      -1,249.00
+8/5/2026       10109966
+               INDIA/NINE60  MST                    8/20/2026            JFKTLVJFK      -2,188.00
+8/5/2026       10109969
+               JULIET/TEN61  MST                    8/20/2026            JFKTLVJFK      -1,094.00
+8/5/2026       10110001
+               KILO/ELEVEN62  MST                   8/10/2026            JFKTLVEWR        -22.25
+8/5/2026       10110097
+8/20/2026 3:09:48 PM                                Client Statement: Sample Agency                             Page 3
+Issue Dt               Invoice No
+    Ticket No          Passenger       Vendor          Start Dt             Itinerary         Fare Remarks
+                       LIMA/TWELVE63  MST              8/6/2026             JFKBDA           10.00
+8/6/2026               10110190
+                       MIKE/THIRTEEN MST               8/10/2026            TLVEWR         -197.75
+8/6/2026               10110191
+                       NOVEM/FOURTEEN MST              8/10/2026            TLVEWR         -197.25
+8/7/2026               10108963
+                       YANKEE/FIVE     MST             8/10/2026            EWRTLVEWR        25.00
+8/7/2026               10110424
+                       YANKEE/FIVE     MST             8/10/2026            EWRTLVEWR        83.00
+8/7/2026               10110618
+                       OSCAR/FIFTEEN MST               8/9/2026             JFKTLVJFK       -50.00
+                       OSCAR/FIFTEEN MST               8/9/2026             JFKTLVJFK        25.00
+                                                                                            -25.00
+8/7/2026               10110624
+                       GOLF/SEVEN58   MST              8/10/2026            FLLBHM           10.00
+8/7/2026               10110634
+                       PAPA/SIXTEEN67  MST             8/9/2026             SFOJFK           20.00
+8/8/2026               10110639
+                       QUEBEC/SEVEN68 MST              9/25/2026            TLVJFKTLV       -41.04
+8/8/2026               10110640
+                       ROMEO/EIGHT6    MST             9/25/2026            TLVJFKTLV       -41.04
+8/8/2026               10110641
+                       SIERRA/NINE70  MST              9/25/2026            TLVJFKTLV       -41.04
+8/8/2026               10110644
+                       TANGO/TWENTY MST                9/17/2026            EWRTLVJFK      -756.75
+8/8/2026               10110645
+                       UNIFORM/ONE7    MST             9/17/2026            EWRTLVJFK      -756.75
+8/8/2026               10110646
+                       VICTOR/TWO73  MST               9/17/2026            EWRTLVJFK      -756.75
+8/8/2026               10110647
+                       WHISKEY/THREE MST               9/17/2026            EWRTLVJFK      -756.75
+8/8/2026               10110648
+                       XRAY/FOUR75     MST             9/17/2026            EWRTLVJFK      -756.75
+8/9/2026               10110669
+                       NOVEM/FOURTEEN3 MST             8/9/2026             JFKTLVEWR        25.00
+8/9/2026               10110724
+                       YANKEE/FIVE76  MST              10/7/2026            EWRTLVJFK     -1,123.50
+8/9/2026               10110733
+                       ZULU/SIX77     MST              10/7/2026            EWRTLVJFK     -1,534.00
+8/10/2026              10110924
+                       ALPHA/ONE78   MST               8/10/2026            JFKTLVJFK      -953.00
+8/10/2026              10110926
+                       BRAVO/TWO79     MST             8/10/2026            JFKTLV         -476.00
+8/10/2026              10110927
+                       CHARLIE/THREE8 MST              8/10/2026            JFKTLV         -476.00
+8/10/2026              10110928
+                       DELTA/FOUR81  MST               8/10/2026            JFKTLV         -476.00
+8/10/2026              10110929
+                       ECHO/FIVE82    MST              8/10/2026            JFKTLV         -476.00
+8/10/2026              10110950
+                       FOXTROT/SIX83 MST               4/18/2027            JFKTLVJFK     -1,032.00
+8/10/2026              10111088
+                       PAPA/SIXTEEN4 MST               8/10/2026            YYZLGA           10.00
+8/11/2026              10111359
+                       GOLF/SEVEN84  MST               8/11/2026                            -78.98 LPV:EL AL PROTECT
+                                                                                                   VCHR
+8/11/2026              10111409
+    7505139402         HOTEL/EIGHT85 El Al Israel Airli 9/9/2026            TLVEWR            0.00
+8/11/2026              10111410
+    7505139403         INDIA/NINE86  El Al Israel Airli 9/9/2026            TLVEWR            0.00
+8/20/2026 3:09:48 PM                                   Client Statement: Sample Agency                             Page 4
+Issue Dt               Invoice No
+    Ticket No          Passenger       Vendor             Start Dt             Itinerary         Fare Remarks
+8/11/2026              10111411
+    7505139404         OMEGA/NINETY El Al Israel Airli   9/9/2026             TLVEWR            0.00
+8/11/2026              10111459
+                       JULIET/TEN87 MST                   8/18/2026            JFKTLV          -69.48
+8/11/2026              10111503
+                       KILO/ELEVEN8    MST                8/18/2026            JFKTLV          -60.60
+8/11/2026              10111506
+                       LIMA/TWELVE8 MST                   8/18/2026            JFKTLV            -6.06
+8/11/2026              10111509
+                       MIKE/THIRTEE MST                   8/18/2026                            -63.78
+8/11/2026              10111606
+                       NOVEM/FOURTEEN9 MST                8/12/2026            MCOPNS           10.00
+8/11/2026              10111616
+                       OSCAR/FIFTE     MST                9/15/2026            JFKTLVJFK      -413.00
+8/11/2026              10111617
+                       PAPA/SIXTEEN    MST                9/15/2026            JFKTLVJFK      -413.00
+8/11/2026              10111618
+                       QUEBEC/SEV      MST                9/15/2026            JFKTLVJFK      -413.00
+8/11/2026              10111619
+                       ROMEO/EIGHT     MST                9/15/2026            JFKTLVJFK      -413.00
+8/11/2026              10111620
+                       SIERRA/NINE     MST                9/15/2026            JFKTLVJFK      -413.00
+8/11/2026              10111621
+                       TANGO/TWENTY9   MST                9/15/2026            JFKTLVJFK      -413.00
+8/11/2026              10111622
+                       UNIFORM/ONE98 MST                  9/15/2026            JFKTLVJFK      -413.00
+8/12/2026              10111684
+                       VICTOR/TWO99   MST                 8/17/2026            JFKTLV         -100.52
+                       VICTOR/TWO99   MST                 8/17/2026            JFKTLV           25.00
+                                                                                               -75.52
+8/12/2026              10111685
+                       VICTOR/TWO99   MST                 8/27/2026            TLVJFKTLV       -62.22
+8/12/2026              10111815
+                       WHISKEY/THRE   MST                 8/12/2026            JFKTLVJFK        24.00
+8/12/2026              10111860
+                       XRAY/FOUR101   MST                 8/17/2026            KRKWAWJFK        20.00
+8/12/2026              10111903
+                       YANKEE/FIVE102 MST                 8/12/2026            JFKTLVJFK        25.00
+8/12/2026              10111904
+                       ZULU/SIX103    MST                 8/12/2026            JFKTLVJFK        25.00
+8/12/2026              10111936
+                       ALPHA/ONE104  MST                  8/13/2026            EWRTLV          -99.12
+8/12/2026              10112023
+                       DELTA/FOUR    MST                  8/13/2026            TLVMUCEWRT      -43.64
+8/13/2026              10112129
+                       BRAVO/TWO105   MST                 8/13/2026            VIEJFKEWRVI      10.00
+8/13/2026              10112130
+                       DELTA/FOUR    MST                  8/13/2026            VIEJFKEWRVI      10.00
+8/13/2026              10112147
+                       WHISKEY/THRE   MST                 8/14/2026            TLVJFK           25.00
+8/13/2026              10112181
+                       DELTA/FOUR    MST                  8/13/2026            JFKTLV          -82.98
+8/13/2026              10112304
+                       CHARLIE/THREE1 MST                 8/19/2026            FLLPNSFLL        10.00
+8/14/2026              10112400
+                       PAPA/SIXT      MST                 8/16/2026            EWRTLVJFK        18.00
+8/14/2026              10112625
+                       DELTA/FOUR107 MST                  9/2/2026             JFKTLVJFK     -2,055.00
+8/14/2026              10112626
+                       ECHO/FIVE108  MST                  9/2/2026             JFKTLVJFK     -2,055.00
+8/20/2026 3:09:48 PM                                      Client Statement: Sample Agency                       Page 5
+Issue Dt               Invoice No
+    Ticket No          Passenger      Vendor         Start Dt             Itinerary                Fare Remarks
+8/16/2026              10109153
+                       KILO/ELEVEN36 MST             8/10/2026            EWRTLVEWR               25.00
+8/16/2026              10112695
+                       FOXTROT/SIX    MST            9/4/2026             TLVEWRJFKTL             -35.64
+8/16/2026              10112701
+                       GOLF/SEVEN110 MST             8/30/2026            JFKTLVJFK               30.00
+8/16/2026              10112705
+                       WHISKEY/THRE   MST            8/30/2026            JFKTLVJFK               30.00
+8/16/2026              10112790
+                       HOTEL/EIGHT11 MST             8/17/2026            EWRTLVJFK               20.00
+8/16/2026              10112793
+                       INDIA/NINE112 MST             8/17/2026            EWRTLVJFK               20.00
+8/16/2026              10112819
+                       JULIET/TEN113  MST            8/17/2026            WAWJFK                  25.00
+8/16/2026              10112820
+                       XRAY/FOUR101   MST            8/17/2026            WAWJFK                  25.00
+8/16/2026              10112856
+                       KILO/ELEVEN11 MST             8/17/2026            JFKTLVJFK             -503.50
+8/16/2026              10112859
+                       LIMA/TWELVE11 MST             8/17/2026            JFKTLVJFK            -2,248.00
+                                                                                              -30,519.65
+
+                                                                                 Total Open   -30,519.65
+                                                                          Account Balance     -30,519.65
+
+
+                                               IT IS A PLEASURE DOING BUSINESS WITH YOU.
+                                                               THANK YOU!
+
+
+
+
+8/20/2026 3:09:48 PM                                 Client Statement: Sample Agency                              Page 6
+
