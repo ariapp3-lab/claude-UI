@@ -26,8 +26,21 @@ import type {
  * cent. Reading one as the other is off by three orders of magnitude.
  */
 export type ReportedCommission =
+  /** A commission claimed as a flat amount. */
   | { readonly kind: "amount"; readonly amount: Money }
-  | { readonly kind: "percent"; readonly rate: string; readonly amount: Money };
+  /** A commission claimed as a percentage of the fare. */
+  | { readonly kind: "percent"; readonly rate: string; readonly amount: Money }
+  /**
+   * A MARKUP, not a commission.
+   *
+   * On a net or bulk fare the agent adds their own margin and the FM element
+   * records it as `FM*G*679.75A`. The amount looks exactly like a commission
+   * claim and is nothing of the kind: it is the agent's own revenue, taken from
+   * the passenger rather than paid by the airline, and a reconciliation that
+   * expects the consolidator to have paid it would report a shortfall on every
+   * marked-up ticket.
+   */
+  | { readonly kind: "markup"; readonly amount: Money };
 
 /**
  * The ATC element is the airline's own exchange arithmetic. Only the positions
@@ -428,6 +441,11 @@ export function parseAmadeusAir(text: string): AirParseResult {
     const fmLine = find(/^FM/, scope);
     if (!fmLine) return null;
     const body = fmLine.split(";")[0] ?? fmLine;
+    // `FM*G*` marks a markup. It has to be tested BEFORE the amount patterns,
+    // which match its digits perfectly well and would file the agent's own
+    // margin as commission the consolidator owes them.
+    const markup = /^FM\*G\*?(-?[\d,]+(?:\.\d{2})?)A?\b/.exec(body);
+    if (markup) return { kind: "markup", amount: parseMoney(markup[1], currency) };
     // A trailing "A" marks an amount. Without it, a value carrying decimals is
     // still an amount and a bare integer is a percentage.
     const amount = /\*?(-?[\d,]+\.\d{2})A\b/.exec(body);
@@ -494,7 +512,8 @@ export function parseAmadeusAir(text: string): AirParseResult {
       paxType,
       passengerName,
       passengerTitle,
-      reportedCommission: reportedFM?.amount ?? null,
+      reportedCommission:
+        reportedFM && reportedFM.kind !== "markup" ? reportedFM.amount : null,
       coupons,
     };
 

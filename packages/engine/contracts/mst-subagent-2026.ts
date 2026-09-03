@@ -151,21 +151,33 @@ export const MST_LY_EXCHANGE_SHARE: Rule = {
 // ---------------------------------------------------------------------------
 
 /**
- * "Net fares issued on LY — $15 (Economy) $30 (Premium) $50 (Business)."
+ * "Net fares issued on LY — $15 (Economy) $30 (Premium) $50 (Business).
+ *  Minimum per ticket based on published fare."
  *
  * These fire on net and bulk fares, where there is no published commission to
- * share and MST is paid for the ticketing rather than out of the airline's
- * money. Footnote 2 — "if MST's fee for a published fare is higher than the
- * net-fare fee, the higher fee will apply" — is NOT encoded: it requires the
- * published fare for the same itinerary, which the AIR file does not carry.
- * See OPEN_QUESTIONS[2].
+ * share: the agent marks the fare up and keeps the markup, and MST is paid for
+ * the ticketing rather than out of the airline's money.
+ *
+ * The cabin figure is a FLOOR, not the fee. Footnote 2 says "if MST's fee for a
+ * published fare is higher than the net-fare fee, the higher fee will apply" —
+ * MST takes what it would have earned had the same fare been issued published
+ * with commission, and the cabin figure applies only where that comes to less.
+ *
+ * So the fee is max(the published-fare point on this fare, the cabin figure),
+ * which is exactly what `rate` plus `minimum` computes. On a $12,378 bulk
+ * business fare the point is $123.79 and the $50 floor never binds; on a $900
+ * economy fare the point is $9.00 and the $15 floor does.
+ *
+ * The rate is the same point MST keeps on a published fare, because that is
+ * precisely what the clause measures — one point on LY, two elsewhere.
  */
 function netFareFee(
   carrier: "LY" | "other",
   cabin: "economy" | "premium" | "business",
-  amount: string,
+  floor: string,
   priority: number,
 ): Rule {
+  const publishedRate = carrier === "LY" ? "1.00" : "2.00";
   return {
     ...base,
     id: `MST-FEE-NET-${carrier}-${cabin.toUpperCase()}`,
@@ -179,14 +191,16 @@ function netFareFee(
     },
     award: {
       kind: "fee",
-      amount,
+      rate: publishedRate,
+      basisOf: "base_fare",
+      minimum: floor,
       currency: "USD",
       per: "ticket",
       direction: "debit_subagent",
     },
     source: cite(
       carrier === "LY" ? "3 — Net fares issued on LY" : "3 — Net fares",
-      `$${amount} (${cabin})`,
+      `${publishedRate}% of the fare as if published, minimum $${floor} (${cabin})`,
     ),
   };
 }
@@ -380,10 +394,12 @@ export const OPEN_QUESTIONS = [
     severity: "high",
     clause: "3 — Net fares, footnote 2",
     question:
-      "'Minimum per ticket based on published fare' — if MST's published-fare fee " +
-      "exceeds the net-fare fee, the higher applies. Computing that needs the published " +
-      "fare for the same itinerary, which the AIR file does not carry. Does MST " +
-      "compute it, and can they supply the figure they used?",
+      "'Minimum per ticket based on published fare' is now modelled as the point MST " +
+      "keeps on a published fare, applied to the fare sold, with the cabin figure as a " +
+      "floor. What remains open is the BASIS: is that point taken on the SELLING fare " +
+      "(what the passenger paid, which is what the ticket carries) or on the NET fare " +
+      "before markup? On a bulk fare with a large markup the two differ substantially — " +
+      "on the $12,378 sample with $2,475 of markup, $123.79 against $99.03.",
   },
   {
     id: "MST-Q4",

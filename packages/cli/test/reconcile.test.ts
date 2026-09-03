@@ -36,8 +36,8 @@ const by = (t: string) => result.findings.find((x) => x.ticketNumber === t)!;
 
 describe("the week", () => {
   it("prices every document, including the three on one record", () => {
-    expect(result.totals.documents).toBe(7);
-    expect(f(result.totals.fareValue)).toBe("29951.75");
+    expect(result.totals.documents).toBe(8);
+    expect(f(result.totals.fareValue)).toBe("33350.50");
   });
 
   it("totals what is at stake by kind", () => {
@@ -114,19 +114,19 @@ describe("the counterfactual", () => {
 describe("exports", () => {
   it("writes one CSV row per document with the money as decimal strings", () => {
     const lines = toCsv(result).trim().split("\n");
-    expect(lines).toHaveLength(8); // header + 7
+    expect(lines).toHaveLength(9); // header + 8
     expect(lines[0]).toContain("ticket_number,document_type");
     expect(lines.slice(1).every((l) => /^\d{3}-\d{10},/.test(l))).toBe(true);
   });
 
   it("writes JSON with no bigint and no float", () => {
     const json = JSON.parse(toJson(result));
-    expect(json.findings).toHaveLength(7);
-    expect(json.totals.fareValue).toBe("29951.75");
+    expect(json.findings).toHaveLength(8);
+    expect(json.totals.fareValue).toBe("33350.50");
     // Counts and the currency code are carried as themselves, not as money.
     expect(json.totals.currency).toBe("USD");
-    expect(json.totals.documents).toBe(7);
-    expect(json.currencies).toEqual([{ code: "USD", documents: 7 }]);
+    expect(json.totals.documents).toBe(8);
+    expect(json.currencies).toEqual([{ code: "USD", documents: 8 }]);
     for (const x of json.findings) {
       expect(typeof x.claimed).toBe("string");
       expect(x.claimed).toMatch(/^-?\d+\.\d{2}$/);

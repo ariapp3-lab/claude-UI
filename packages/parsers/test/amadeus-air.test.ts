@@ -67,9 +67,17 @@ describe("money", () => {
   });
 
   it("computes the markup, and it matches the file's own FM element", () => {
+    // `FM*G*2475.75A` records the markup, and selling less net comes to the
+    // same 2,475.75 by arithmetic that never looks at the FM line. Two
+    // independent sources agreeing is what makes the reading trustworthy.
+    //
+    // It must NOT be read as a commission claim. The digits fit that pattern
+    // exactly, and filing the agent's own margin as commission would have the
+    // consolidator appearing to owe it on every marked-up ticket.
     expect(f(r.passengers[0].markup)).toBe("2475.75");
-    expect(r.passengers[0].reportedFM!.kind).toBe("amount");
+    expect(r.passengers[0].reportedFM!.kind).toBe("markup");
     expect(f(r.passengers[0].reportedFM!.amount)).toBe("2475.75");
+    expect(r.tickets[0].reportedCommission).toBeNull();
   });
 
   it("explodes XT into its nine components rather than trusting the TAX- line", () => {

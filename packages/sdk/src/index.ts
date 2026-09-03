@@ -18,7 +18,7 @@
  */
 
 import {
-  calculate, formatMoney, journeyDestination, DEFAULT_GEO,
+  add, calculate, formatMoney, journeyDestination, DEFAULT_GEO,
   type LayerResult, type Rule, type TicketDocument, type Waterfall,
 } from "@commission/engine";
 import {
@@ -90,14 +90,35 @@ export interface PricedDocument {
   }[];
 
   /**
-   * What the sub-agent actually ends up with: their share less every fee.
+   * What the sub-agent ends up with FROM COMMISSION: their share less fees.
    *
    * This is the figure that differs from `subAgentCommission` on exactly the
-   * tickets that matter. A net or bulk fare earns no commission and costs a
-   * flat fee by cabin, so the share reads 0.00 and the net reads -15.00. A
-   * caller that shows the share alone is showing the wrong number.
+   * tickets that matter. A net or bulk fare earns no commission and still costs
+   * a fee, so the share reads 0.00 and this reads -33.99. A caller that shows
+   * the share alone is showing the wrong number.
    */
   readonly netToSubAgent: string | null;
+
+  /**
+   * The agent's own margin on a net or bulk fare: selling fare less net fare.
+   *
+   * Not commission. It is taken from the passenger, not paid by the airline,
+   * and the consolidator never owes it — so it must never be reconciled against
+   * a statement. Zero on a published fare.
+   */
+  readonly markup: string;
+
+  /**
+   * The whole ticket from the sub-agent's side: markup, plus commission, less
+   * every fee.
+   *
+   * On a marked-up bulk fare this is the only figure that describes the
+   * position. `netToSubAgent` reads -33.99 and looks like a losing ticket;
+   * with a $679.75 markup the agent is actually $645.76 ahead. Both are true
+   * and they answer different questions — one is what the consolidator owes,
+   * this is what the ticket was worth.
+   */
+  readonly totalToSubAgent: string | null;
 
   /**
    * The value to write into a commission field, or null.
@@ -257,6 +278,9 @@ export function priceAirFile(airText: string, opts: PriceOptions): PriceResult {
         amount: formatMoney(fee.amount),
       })),
       netToSubAgent: w && subAgentId ? formatMoney(w.netToSubAgent) : null,
+      markup: formatMoney(p.markup),
+      totalToSubAgent:
+        w && subAgentId ? formatMoney(add(w.netToSubAgent, p.markup)) : null,
 
       prefill:
         w && payable && isSafeToPrefill(w, subAgentId ? (w.subAgent ?? w.carrier) : w.carrier)
@@ -264,8 +288,14 @@ export function priceAirFile(airText: string, opts: PriceOptions): PriceResult {
           : null,
       outcome,
 
-      claimed: p.reportedFM ? formatMoney(p.reportedFM.amount) : null,
-      claimedAs: p.reportedFM?.kind ?? null,
+      // A markup is reported through `markup`, never here: this field is what
+      // the document claims the CONSOLIDATOR owes, and a markup is not that.
+      claimed:
+        p.reportedFM && p.reportedFM.kind !== "markup"
+          ? formatMoney(p.reportedFM.amount)
+          : null,
+      claimedAs:
+        p.reportedFM && p.reportedFM.kind !== "markup" ? p.reportedFM.kind : null,
 
       ruleId: w?.carrier.ruleId ?? null,
       clause: w?.carrier.clause ?? null,

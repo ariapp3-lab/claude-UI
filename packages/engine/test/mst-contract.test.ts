@@ -222,3 +222,57 @@ describe("clauses that are not yet safe to spend", () => {
     expect(large.fees.map((f) => f.ruleId)).not.toContain("MST-FEE-MINIMUM");
   });
 });
+
+describe("§3 footnote 2 — the cabin figure is a floor, not the fee", () => {
+  /**
+   * On a net or bulk fare the agent marks the fare up and keeps the markup, and
+   * MST takes what it would have made had the same fare gone out published with
+   * commission. The $15/$30/$50 cabin figures apply only where that comes to
+   * less. Getting this backwards understates the charge on every large fare —
+   * $50 instead of $123.79 on the sample business ticket.
+   */
+  const bulk = (base: string, rbd: string): TicketDocument =>
+    commissionable({
+      fareType: "bulk",
+      tourCode: null,
+      baseFare: parseMoney(base, "USD"),
+      total: parseMoney(base, "USD"),
+      coupons: commissionable().coupons.map((c) => ({ ...c, rbd })),
+    });
+
+  it("takes the published-fare point where it exceeds the floor", () => {
+    // 1% of 12,378.75 = 123.7875 → 123.79 half-up.
+    expect(formatMoney(run(bulk("12378.75", "C")).netToSubAgent)).toBe("-123.79");
+  });
+
+  it("falls back to the cabin floor on a small fare", () => {
+    // 1% of 900.00 = 9.00, under the $15 economy floor.
+    expect(formatMoney(run(bulk("900.00", "Y")).netToSubAgent)).toBe("-15.00");
+  });
+
+  it("uses the right floor for each cabin", () => {
+    // A fare small enough that the floor binds in every cabin.
+    expect(formatMoney(run(bulk("100.00", "Y")).netToSubAgent)).toBe("-15.00");
+    expect(formatMoney(run(bulk("100.00", "W")).netToSubAgent)).toBe("-30.00");
+    expect(formatMoney(run(bulk("100.00", "J")).netToSubAgent)).toBe("-50.00");
+  });
+
+  it("takes two points, not one, on a carrier that is not LY", () => {
+    const other = run(commissionable({
+      fareType: "bulk",
+      validatingCarrier: "LH",
+      tourCode: null,
+      baseFare: parseMoney("10000.00", "USD"),
+      total: parseMoney("10000.00", "USD"),
+      coupons: commissionable().coupons.map((c) => ({ ...c, marketingCarrier: "LH" })),
+    }));
+    expect(formatMoney(other.netToSubAgent)).toBe("-200.00");
+  });
+
+  it("cites the row of the schedule the charge came from", () => {
+    // Traceability is the point: an agent disputing $123.79 needs to land on
+    // the net-fares row, not on a bare number.
+    const w = run(bulk("12378.75", "C"));
+    expect(w.fees[0]!.clause).toContain("Net fares");
+  });
+});

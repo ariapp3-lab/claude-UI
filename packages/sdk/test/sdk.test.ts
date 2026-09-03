@@ -197,15 +197,19 @@ describe("a ticket that earns nothing still costs something", () => {
     priceAirFile(read(name), { config, view: "subagent" }).documents[0]!;
 
   it("reports the fee alongside the zero commission", () => {
+    // A $12,378.75 bulk business fare. The cabin figure ($50) is a FLOOR, not
+    // the fee: footnote 2 gives MST what it would have earned had the fare been
+    // issued published, which is one point = $123.79. The floor never binds.
     const doc = priced("amadeus-air-ly-bt.air");
     expect(doc.subAgentCommission).toBe("0.00");
-    expect(doc.netToSubAgent).toBe("-50.00");
+    expect(doc.netToSubAgent).toBe("-123.79");
     expect(doc.fees.map((f) => f.ruleId)).toEqual(["MST-FEE-NET-LY-BUSINESS"]);
   });
 
-  it("charges the economy rate on an economy bulk fare", () => {
+  it("charges the published-fare point on an economy bulk fare", () => {
+    // $3,608.00 economy: one point = $36.08, above the $15 floor.
     const doc = priced("amadeus-air-ly-multipax.air");
-    expect(doc.netToSubAgent).toBe("-15.00");
+    expect(doc.netToSubAgent).toBe("-36.08");
   });
 
   it("cites the clause behind every fee", () => {
@@ -229,5 +233,59 @@ describe("a ticket that earns nothing still costs something", () => {
   it("still round-trips through JSON", () => {
     const doc = priced("amadeus-air-ly-bt.air");
     expect(JSON.parse(JSON.stringify(doc))).toEqual(doc);
+  });
+});
+
+describe("a marked-up net fare", () => {
+  /**
+   * The real record: KN- net base 2,719.00, KS- selling base 3,398.75, and
+   * `FM*G*679.75A` recording the 679.75 difference as the agent's markup.
+   *
+   * That FM element is the trap. Its digits match the commission-amount pattern
+   * perfectly, so it was being filed as a commission claim of $679.75 — money
+   * the consolidator would then appear to owe, and a shortfall reported on
+   * every marked-up ticket in the folder.
+   */
+  const config = seedConfig();
+  const doc = priceAirFile(read("amadeus-air-ly-markup.air"), {
+    config, view: "subagent",
+  }).documents[0]!;
+
+  it("reads FM*G as a markup, not a commission claim", () => {
+    expect(doc.markup).toBe("679.75");
+    expect(doc.claimed).toBeNull();
+  });
+
+  it("agrees with the fare lines, which are computed independently", () => {
+    // 3,398.75 selling less 2,719.00 net. The FM element and the arithmetic are
+    // two separate sources, and they have to agree.
+    expect(doc.baseFare).toBe("3398.75");
+    expect(doc.markup).toBe("679.75");
+  });
+
+  it("charges the published-fare point, not the cabin floor", () => {
+    // K is economy, so the floor is $15 — but one point of 3,398.75 is 33.99,
+    // and footnote 2 gives MST the higher of the two.
+    expect(doc.netToSubAgent).toBe("-33.99");
+    expect(doc.fees.map((f) => f.label)).toEqual(["net fare fee"]);
+  });
+
+  it("reports what the ticket was actually worth to the agent", () => {
+    // -33.99 is what the consolidator owes; it looks like a losing ticket.
+    // With the markup the agent is 645.76 ahead. Both are true, and they
+    // answer different questions.
+    expect(doc.totalToSubAgent).toBe("645.76");
+  });
+
+  it("earns no commission, because the tour code is absent", () => {
+    expect(doc.outcome).toBe("NIL");
+    expect(doc.carrierCommission).toBe("0.00");
+  });
+
+  it("reports no markup on a published fare", () => {
+    const published = priceAirFile(read("amadeus-air-ly-commission.air"), {
+      config, view: "subagent",
+    }).documents[0]!;
+    expect(published.markup).toBe("0.00");
   });
 });

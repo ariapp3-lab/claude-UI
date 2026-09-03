@@ -981,6 +981,14 @@ function feeLabel(rule: Rule): string {
   if (codes.includes("ADM")) return "ADM handling fee";
   if (codes.includes("EMD")) return "EMD fee";
   if (rule.award.basisOf === "ticket_total" && rule.award.rate) return "merchant fee";
+  const fareTypes = rule.match.fareType;
+  const isNetFare =
+    fareTypes && typeof fareTypes === "object" && fareTypes.in
+      ? fareTypes.in.some((f) => f === "bulk" || f === "net")
+      : false;
+  if (isNetFare) return "net fare fee";
+  if (rule.match.upstreamCommission === "nil") return "non-commissionable fee";
+  if (rule.match.upstreamCommissionBelow) return "minimum commission fee";
   return "fee charged to sub-agent";
 }
 
